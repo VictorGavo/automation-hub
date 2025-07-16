@@ -1,0 +1,7 @@
+.env
+daily_notes/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.vscode/

@@ -87,6 +87,12 @@ var response = UrlFetchApp.fetch('https://your-ngrok-url.ngrok.io/webhook', opti
 **Step 9: Dockerization**
 - Container setup for Raspberry Pi deployment
 
+**Step X: Calendar Integration**
+- Integrate daily calendar events display
+- Compare planned vs actual time tracking
+- Sync with Google Calendar API
+- Show meeting summaries and schedule adherence
+
 ## Testing
 
 ```bash
