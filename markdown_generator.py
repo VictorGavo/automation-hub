@@ -11,6 +11,19 @@ class MarkdownGenerator:
         # Create output directory if it doesn't exist
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
+
+        self.drive_manager = None
+        if Config.GOOGLE_DRIVE_ENABLED:
+            try:
+                if Config.GOOGLE_DRIVE_METHOD == 'filesystem':
+                    from file_system import FileSystemDriveManager
+                    self.drive_manager = FileSystemDriveManager(Config.GOOGLE_DRIVE_SYNC_PATH)
+                    print("Google Drive file system integration enabled")
+                else:
+                    print(f"Unknown Google Drive Method: {Config.GOOGLE_DRIVE_METHOD}")
+            except Exception as e:
+                print(f"Failed to initialize Google Drive: {e}")
+                self.drive_manager = None
     
     def generate_daily_template(self, daily_entry):
         """Generate markdown template with dynamic frontmatter and restructured sections"""
@@ -31,6 +44,13 @@ class MarkdownGenerator:
                 f.write(content)
             
             print(f"Generated daily template: {filepath}")
+            # Upload to Google Drive if enabled (add after the existing print statement)
+            if self.drive_manager:
+                upload_result = self.drive_manager.upload_daily_note(filepath, daily_entry['date'])
+                if upload_result['success']:
+                    print(f"Successfully uploaded {os.path.basename(filepath)} to Google Drive")
+                else:
+                    print(f"Failed to upload {os.path.basename(filepath)} to Google Drive: {upload_result.get('error')}")
             return filepath
         except Exception as e:
             print(f"Error writing markdown file: {e}")

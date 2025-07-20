@@ -9,15 +9,35 @@ class Config:
     DB_PORT = os.getenv('DB_PORT', '5433')
     
     # Testing flag - set to True for test database
-    TESTING = os.getenv('TESTING', 'False').lower() == 'true'
+    TESTING = os.getenv('TESTING', 'False').lower() == 'true'    
     
-    # Database names
     DB_NAME = 'automation_hub_test' if TESTING else 'automation_hub'
-    
     # Flask configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
     DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
     
+    # Google Drive Configuration
+    GOOGLE_DRIVE_ENABLED = os.getenv('GOOGLE_DRIVE_ENABLED', 'False').lower() == 'true'
+    GOOGLE_DRIVE_METHOD = os.getenv('GOOGLE_DRIVE_METHOD', 'filesystem')  # 'filesystem', 'oauth', or 'service_account'
+    
+    # File system sync method (recommended for Raspberry Pi)
+    GOOGLE_DRIVE_SYNC_PATH = os.getenv('GOOGLE_DRIVE_SYNC_PATH', 'C:/Users/Victo/Google Drive/USV/My Calendar/My Daily Notes')
+    
+    # OAuth method (alternative)
+    GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', 'service-account-key.json')
+    GOOGLE_DRIVE_ROOT_FOLDER = os.getenv('GOOGLE_DRIVE_ROOT_FOLDER', 'Daily Notes')
+    
+    # File Paths
+    OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'generated_notes')
+    TEMPLATES_DIR = os.getenv('TEMPLATES_DIR', 'templates')
+    
+    # Logging Configuration
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FILE = os.getenv('LOG_FILE', 'automation_hub.log')
+    
+    # API Configuration
+    API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
+
     # Webhook configuration
     WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET', None)  # Optional webhook validation
     
@@ -36,3 +56,25 @@ class Config:
         print(f"Testing Mode: {cls.TESTING}")
         print(f"Debug Mode: {cls.DEBUG}")
         print(f"Timezone: {cls.TIMEZONE}")
+
+    @staticmethod
+    def get_db_connection_string():
+        """Get PostgreSQL connection string."""
+        return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
+    
+    @staticmethod
+    def create_output_dir():
+        """Create output directory if it doesn't exist."""
+        if not os.path.exists(Config.OUTPUT_DIR):
+            os.makedirs(Config.OUTPUT_DIR)
+    
+    @staticmethod
+    def validate_google_drive_config():
+        """Validate Google Drive configuration."""
+        if not Config.GOOGLE_DRIVE_ENABLED:
+            return True
+            
+        if not os.path.exists(Config.GOOGLE_SERVICE_ACCOUNT_FILE):
+            raise FileNotFoundError(f"Google service account file not found: {Config.GOOGLE_SERVICE_ACCOUNT_FILE}")
+        
+        return True
