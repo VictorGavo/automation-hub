@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta
 import os
+from typing import List
 from config import Config
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MarkdownGenerator:
     def __init__(self):
@@ -27,6 +31,7 @@ class MarkdownGenerator:
     
     def generate_daily_template(self, daily_entry):
         """Generate markdown template with dynamic frontmatter and restructured sections"""
+
         if not daily_entry:
             return None
         
@@ -34,6 +39,79 @@ class MarkdownGenerator:
         
         # Generate markdown content using updated structure
         content = self._build_template_content(daily_entry, date_str)
+
+        # Process Notion captures if EOD data exists (indicating end of day processing)
+        notion_processing_results = {
+        'enabled': Config.NOTION_ENABLED,
+        'captures_found': False,
+        'sections_imported': 0,
+        'blocks_cleared': 0,
+        'error': None
+        }
+
+        # Process Notion captures if EOD data exists (indicating end of day processing)
+        if daily_entry['eod_data'] and Config.NOTION_ENABLED:
+            try:
+                from notion_manager import NotionManager
+                notion_manager = NotionManager()
+                
+                # Get captures from Notion
+                capture_result = notion_manager.get_daily_capture_content()
+                
+                if capture_result['success'] and capture_result['content']:
+                    # print(f"DEBUG: Found {len(capture_result['content'])} content sections")
+                    # for header, items in capture_result['content'].items():
+                    #     print(f"DEBUG: Section '{header}' has {len(items)} items")
+                    
+                    # Format for markdown
+                    notion_markdown = notion_manager.format_content_for_markdown(
+                        capture_result['content']
+                    )
+                    
+                    # print(f"DEBUG: Generated markdown length: {len(notion_markdown)}")
+                    # print(f"DEBUG: Generated markdown preview: {notion_markdown[:200]}...")
+                    
+                    if notion_markdown.strip():
+                        # Insert into content
+                        content_lines = content.split('\n')
+                        updated_lines = self._insert_notion_captures(content_lines, notion_markdown)
+                        content = '\n'.join(updated_lines)
+                        print(f"✅ Imported captures from Notion Daily Capture")
+                        # print(f"DEBUG: Content after insertion contains 'Quick Capture': {'Quick Capture' in content}")
+
+
+                        notion_processing_results['captures_found'] = True
+                        notion_processing_results['sections_imported'] = len([
+                            header for header in capture_result['content'].keys()
+                            if any(capture_key in header for capture_key in ['💭 Quick Capture', 'Quick Capture', 'Capture'])
+                        ])
+                    
+                    # Clear the Notion page for next day
+                    clear_result = notion_manager.clear_daily_capture_page()
+                    if clear_result['success']:
+                        notion_processing_results['blocks_cleared'] = clear_result['deleted_blocks']
+                        print(f"✅ Cleared {clear_result['deleted_blocks']} items from Daily Capture")
+                    else:
+                        print(f"❌ Failed to clear Daily Capture: {clear_result['error']}")
+                        notion_processing_results['error'] = f"Clear failed: {clear_result['error']}"
+
+                    # Rebuild template sections for the next day
+                    if daily_entry['sod_data']: # Use current SOD data to rebuild tempalte
+                        rebuild_result = notion_manager.update_daily_capture_template(daily_entry['sod_data'])
+                        if rebuild_result['success']:
+                            print(f"✅ Rebuilt Daily Capture template for next day")
+                        else:
+                            print(f"❌ Failed to rebuild tempalte: {rebuild_result['error']}")
+
+                    if notion_processing_results['sections_imported'] > 0:
+                        print(f"✅ Imported {notion_processing_results['sections_imported']} capture sections from Notion")
+                else:
+                    print("ℹ️ No captures found in Notion Daily Capture page")
+                    
+            except Exception as e:
+                error_msg = f"Error processing Notion captures: {e}"
+                print(f"❌ {error_msg}")
+                notion_processing_results['error'] = error_msg
         
         # Write to file
         filename = f"{date_str}.md"
@@ -500,3 +578,78 @@ class MarkdownGenerator:
                 'eod_timestamp': None
             }
             return self.generate_daily_template(basic_entry)
+        
+    def _insert_notion_captures(self, content_lines: List[str], notion_content: str) -> List[str]:
+        """
+        Insert Notion capture content under the ### Captured Notes section.
+        
+        Args:
+            content_lines: Existing markdown content as list of lines
+            notion_content: Formatted notion content to insert
+            
+        Returns:
+            Updated content lines with notion content inserted
+        """
+        if not notion_content.strip():
+            # print("DEBUG: notion_content is empty, returning original lines")
+            return content_lines
+        
+        # print(f"DEBUG: Inserting notion content ({len(notion_content)} chars)")
+        # print(f"DEBUG: notion_content preview: {notion_content[:100]}...")
+    
+
+        # Find the ### Captured Notes section
+        capture_notes_index = None
+        for i, line in enumerate(content_lines):
+            if line.strip() == "### Captured Notes":
+                capture_notes_index = i
+                # print(f"DEBUG: Found '### Captured Notes' at line {i}")
+                break
+        
+        if capture_notes_index is None:
+            # print("DEBUG: Could not find ### Captured Notes section")
+            logger.warning("Could not find ### Captured Notes section")
+            for i, line in enumerate(content_lines):
+                    if line.startswith("###"):
+                        # print(f"DEBUG: Found section at line {i}: {line}")
+            return content_lines
+        
+        # Find the end of the dataview block (look for next ### or ##)
+        insert_index = None
+        for i in range(capture_notes_index + 1, len(content_lines)):
+            line = content_lines[i].strip()
+            if line.startswith("```") and i > capture_notes_index + 1:
+                # Found end of dataview block, insert after it
+                insert_index = i + 1
+                # print(f"DEBUG: Found end of dataview block at line {i}, will insert at {insert_index}")
+                break
+            elif line.startswith("###") or line.startswith("##"):
+                # Found next section, insert before it
+                insert_index = i
+                # print(f"DEBUG: Found next section at line {i}, will insert before it")
+                break
+        
+        # If no insertion point found, append to end
+        if insert_index is None:
+            insert_index = len(content_lines)
+            # print(f"DEBUG: No insertion point found, appending at end (line {insert_index})")
+        
+        # Insert the notion content
+        notion_lines = notion_content.split('\n')
+        # print(f"DEBUG: Splitting notion content into {len(notion_lines)} lines")
+
+        
+        # Add a separator and the content
+        updated_lines = (
+            content_lines[:insert_index] + 
+            ['', '#### From Daily Capture'] + 
+            notion_lines + 
+            [''] + 
+            content_lines[insert_index:]
+        )
+
+        # print(f"DEBUG: Original content had {len(content_lines)} lines")
+        # print(f"DEBUG: Updated content has {len(updated_lines)} lines")
+        # print(f"DEBUG: Added {len(notion_lines) + 3} lines (content + separator + spacing)")
+            
+        return updated_lines

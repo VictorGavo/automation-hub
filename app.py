@@ -48,16 +48,40 @@ def sod_webhook():
         success = db_manager.upsert_sod_data(current_date, form_data)
         
         if success:
+            notion_result = None
+            if Config.NOTION_ENABLED:
+                try:
+                    from notion_manager import NotionManager
+                    notion_manager = NotionManager()
+                    notion_result = notion_manager.update_daily_capture_template(form_data)
+                    
+                    if notion_result['success']:
+                        updated_sections = notion_result.get('updated_sections', [])
+                        print(f"✅ Updated Notion Daily Capture: {', '.join(updated_sections)}")
+                    else:
+                        print(f"❌ Failed to update Notion Daily Capture: {notion_result['error']}")
+                        
+                except Exception as e:
+                    print(f"❌ Error updating Notion Daily Capture: {e}")
+            
             # Generate/update markdown file
             markdown_gen = MarkdownGenerator()
             daily_entry = db_manager.get_daily_entry(current_date)
-            markdown_gen.generate_daily_template(daily_entry)
+
+            # Only generate if no EOD data exists (first time creation)
+            if not daily_entry['eod_data']:
+                markdown_gen.generate_daily_template(daily_entry)
+                print("✅ Generated initial daily template")
+            else:
+                print("ℹ️ EOD data exists, skipping markdown generation")
             
+
             response = {
                 'success': True,
                 'message': 'SOD data processed successfully',
                 'date': current_date.isoformat(),
-                'previous_day_warning': prev_message if not prev_complete else None
+                'previous_day_warning': prev_message if not prev_complete else None,
+                'notion_update': notion_result['success'] if notion_result else False
             }
             
             return jsonify(response), 200
@@ -95,16 +119,25 @@ def eod_webhook():
         success = db_manager.upsert_eod_data(current_date, form_data)
         
         if success:
-            # Generate/update markdown file
+            # Process Notion captures (this happens during markdown generation)
+            # but we'll track the results here for the API response
+            notion_capture_result = None
+
+            # Generate/update markdown file (this will process Notion captures)
             markdown_gen = MarkdownGenerator()
             daily_entry = db_manager.get_daily_entry(current_date)
-            markdown_gen.generate_daily_template(daily_entry)
+            markdown_path = markdown_gen.generate_daily_template(daily_entry)
+
+            # Check if markdown generation was successful
+            markdown_success = markdown_path is not None
             
             response = {
                 'success': True,
                 'message': 'EOD data processed successfully',
                 'date': current_date.isoformat(),
-                'sod_warning': sod_message if not sod_complete else None
+                'sod_warning': sod_message if not sod_complete else None,
+                'markdown_generated': markdown_success,
+                'notion_captures_processed': Config.NOTION_ENABLED and daily_entry['eod_data'] is not None
             }
             
             return jsonify(response), 200
@@ -197,6 +230,67 @@ def regenerate_markdown(date_str):
     except Exception as e:
         print(f"Error regenerating markdown: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/notion/update-template', methods=['POST'])
+def update_notion_template():
+    """Manually update Notion Daily Capture template with SOD data"""
+    try:
+        if not Config.NOTION_ENABLED:
+            return jsonify({'error': 'Notion integration not enabled'}), 400
+        
+        # Get date parameter
+        date_str = request.args.get('date')
+        if date_str:
+            entry_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        else:
+            entry_date = date.today()
+        
+        # Get daily entry
+        entry = db_manager.get_daily_entry(entry_date)
+        if not entry or not entry['sod_data']:
+            return jsonify({'error': 'No SOD data found for this date'}), 404
+        
+        # Update Notion template
+        from notion_manager import NotionManager
+        notion_manager = NotionManager()
+        result = notion_manager.update_daily_capture_template(entry['sod_data'])
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': 'Notion template updated successfully',
+                'date': entry_date.isoformat(),
+                'updated_sections': result.get('updated_sections', []),
+                'blocks_added': result.get('blocks_added', 0)
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+            
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    except Exception as e:
+        print(f"Error updating Notion template: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/notion/test', methods=['GET'])
+def test_notion_connection():
+    """Test Notion API connection"""
+    try:
+        if not Config.NOTION_ENABLED:
+            return jsonify({'error': 'Notion integration not enabled'}), 400
+        
+        from notion_manager import NotionManager
+        notion_manager = NotionManager()
+        result = notion_manager.test_connection()
+        
+        return jsonify(result), 200 if result['success'] else 500
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     # Print current configuration

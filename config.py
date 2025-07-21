@@ -22,6 +22,11 @@ class Config:
     
     # File system sync method (recommended for Raspberry Pi)
     GOOGLE_DRIVE_SYNC_PATH = os.getenv('GOOGLE_DRIVE_SYNC_PATH', 'C:/Users/Victo/Google Drive/USV/My Calendar/My Daily Notes')
+
+    # Notion API Configuration
+    NOTION_API_TOKEN = os.getenv('NOTION_API_TOKEN', None)
+    NOTION_DAILY_CAPTURE_PAGE_ID = os.getenv('NOTION_DAILY_CAPTURE_PAGE_ID', None)
+    NOTION_ENABLED = os.getenv('NOTION_ENABLED', 'False').lower() == 'true'
     
     # OAuth method (alternative)
     GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', 'service-account-key.json')
