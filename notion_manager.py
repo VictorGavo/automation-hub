@@ -537,3 +537,17 @@ class NotionManager:
             
         except Exception as e:
             return {'success': False, 'error': str(e)}
+        
+    def update_goals_section(self, goals_blocks: List[Dict]) -> Dict[str, Any]:
+        """Update the Current Goals section with Obsidian goal data."""
+        try:
+            # This would replace the _create_goals_section method
+            # in update_daily_capture_template
+            return {
+                'success': True,
+                'goals_blocks': goals_blocks,
+                'block_count': len(goals_blocks)
+            }
+        except Exception as e:
+            logger.error(f"Error updating goals section: {e}")
+            return {'success': False, 'error': str(e)}

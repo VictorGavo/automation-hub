@@ -27,6 +27,12 @@ class Config:
     NOTION_API_TOKEN = os.getenv('NOTION_API_TOKEN', None)
     NOTION_DAILY_CAPTURE_PAGE_ID = os.getenv('NOTION_DAILY_CAPTURE_PAGE_ID', None)
     NOTION_ENABLED = os.getenv('NOTION_ENABLED', 'False').lower() == 'true'
+
+    # Obsidian Integration
+    OBSIDIAN_VAULT_METHOD = os.getenv('OBSIDIAN_VAULT_METHOD', 'local')  # 'local' or 'google_drive'
+    OBSIDIAN_VAULT_LOCAL_PATH = os.getenv('OBSIDIAN_VAULT_PATH', 'C:/Users/Victo/Documents/Growth/Ultimate Starter Vault 2.1')
+    OBSIDIAN_VAULT_GDRIVE_FOLDER_ID = os.getenv('OBSIDIAN_VAULT_GDRIVE_FOLDER_ID', None)
+    OBSIDIAN_GOALS_ENABLED = os.getenv('OBSIDIAN_GOALS_ENABLED', 'False').lower() == 'true'
     
     # OAuth method (alternative)
     GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', 'service-account-key.json')

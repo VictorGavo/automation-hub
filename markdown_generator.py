@@ -612,7 +612,7 @@ class MarkdownGenerator:
             for i, line in enumerate(content_lines):
                     if line.startswith("###"):
                         # print(f"DEBUG: Found section at line {i}: {line}")
-            return content_lines
+                        return content_lines
         
         # Find the end of the dataview block (look for next ### or ##)
         insert_index = None

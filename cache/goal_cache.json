@@ -1,0 +1,52 @@
+{
+  "goals": {
+    "yearly": {
+      "title": "Create space between incoming information and my reaction",
+      "description": "I do not act out of emotion unless it is to support my logic response",
+      "why": "I want to bring forth my best self with every interaction",
+      "status": "🟨",
+      "summary": "I do not act out of emotion unless it is to support my logic response | Why: I want to bring forth my best self with every interaction",
+      "found": true,
+      "filename": "Create space between incoming information and my reaction.md",
+      "last_updated": "2025-07-22T14:21:48.043275"
+    },
+    "quarterly": {
+      "title": "[Create 2025-Q3 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-Q3. Create one in Obsidian.",
+      "found": false,
+      "error": "No goal found for timeframe",
+      "last_updated": "2025-07-22T14:21:48.073002"
+    },
+    "monthly": {
+      "title": "[Create 2025-M7 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-M7. Create one in Obsidian.",
+      "found": false,
+      "error": "No goal found for timeframe",
+      "last_updated": "2025-07-22T14:21:48.091775"
+    },
+    "weekly": {
+      "title": "[Create 2025-W30 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-W30. Create one in Obsidian.",
+      "found": false,
+      "error": "No goal found for timeframe",
+      "last_updated": "2025-07-22T14:21:48.112342"
+    }
+  },
+  "timeframes": {
+    "yearly": "2025",
+    "quarterly": "2025-Q3",
+    "monthly": "2025-M7",
+    "weekly": "2025-W30"
+  },
+  "last_updated": "2025-07-22T14:21:48.112342",
+  "target_date": "2025-07-22"
+}

@@ -48,11 +48,28 @@ def sod_webhook():
         success = db_manager.upsert_sod_data(current_date, form_data)
         
         if success:
+            # Update Daily Capture template with SOD data AND goals
+            # Update Daily Capture template with SOD data AND goals
             notion_result = None
             if Config.NOTION_ENABLED:
                 try:
                     from notion_manager import NotionManager
                     notion_manager = NotionManager()
+                    
+                    # Get current goals if enabled
+                    goals_blocks = []
+                    if Config.OBSIDIAN_GOALS_ENABLED:
+                        from obsidian_goal_manager import ObsidianGoalManager
+                        goal_manager = ObsidianGoalManager()
+                        goals_result = goal_manager.get_current_goals(current_date)
+                        
+                        if goals_result['goals']:
+                            goals_blocks = goal_manager.format_goals_for_notion(goals_result['goals'])
+                            cache_status = "cached" if goals_result['cache_used'] else "fresh"
+                            goals_found = sum(1 for goal in goals_result['goals'].values() if goal.get('found', False))
+                            print(f"✅ Loaded {goals_found}/4 goals from Obsidian ({cache_status})")
+                    
+                    # Update template with SOD data 
                     notion_result = notion_manager.update_daily_capture_template(form_data)
                     
                     if notion_result['success']:
