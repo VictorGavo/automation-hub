@@ -352,7 +352,7 @@ class NotionManager:
             
             # Extract SOD data
             big_3 = sod_data.get("Today's Big 3", "")
-            success_criteria = sod_data.get("What would make today successful?", "")
+            success_criteria = sod_data.get("I know today would be successful if I did or felt this by the end:", "")
             
             # Clear the page first
             clear_result = self.clear_daily_capture_page()

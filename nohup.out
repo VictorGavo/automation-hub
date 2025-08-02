@@ -1,0 +1,116 @@
+Traceback (most recent call last):
+  File "/home/admin/Projects/automation-hub/automation-hub/app.py", line 4, in <module>
+    from database import DatabaseManager
+  File "/home/admin/Projects/automation-hub/automation-hub/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+2025-07-26T22:49:07Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
+2025-07-26T22:49:07Z INF Requesting new quick Tunnel on trycloudflare.com...
+2025-07-26T22:49:10Z INF +--------------------------------------------------------------------------------------------+
+2025-07-26T22:49:10Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2025-07-26T22:49:10Z INF |  https://node-deeper-menus-advancement.trycloudflare.com                                   |
+2025-07-26T22:49:10Z INF +--------------------------------------------------------------------------------------------+
+2025-07-26T22:49:10Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]
+2025-07-26T22:49:10Z INF Version 2025.7.0 (Checksum db86f73e07133ca3e0e63b8158dbaacf39f5dd4458260cb95ccf12b35c1b6cd9)
+2025-07-26T22:49:10Z INF GOOS: linux, GOVersion: go1.24.4, GoArch: arm64
+2025-07-26T22:49:10Z INF Settings: map[ha-connections:1 protocol:quic url:http://localhost:80]
+2025-07-26T22:49:10Z INF cloudflared will not automatically update if installed by a package manager.
+2025-07-26T22:49:10Z INF Generated Connector ID: e5ccffd7-6295-4be1-a050-69701aa2ebcb
+2025-07-26T22:49:10Z INF Initial protocol quic
+2025-07-26T22:49:10Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-26T22:49:10Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-26T22:49:10Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-26T22:49:10Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-26T22:49:10Z INF Starting metrics server on 127.0.0.1:20242/metrics
+2025-07-26T22:49:10Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2025-07-26T22:49:11Z INF Registered tunnel connection connIndex=0 connection=cf4d1074-54e8-495b-bbaf-4e72b2b397bc event=0 ip=198.41.192.67 location=sea01 protocol=quic
+Traceback (most recent call last):
+  File "/home/admin/Projects/automation-hub/automation-hub/app.py", line 4, in <module>
+    from database import DatabaseManager
+  File "/home/admin/Projects/automation-hub/automation-hub/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+Traceback (most recent call last):
+  File "/home/admin/Projects/automation-hub/automation-hub/app.py", line 4, in <module>
+    from database import DatabaseManager
+  File "/home/admin/Projects/automation-hub/automation-hub/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+2025-07-26T22:49:42Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
+2025-07-26T22:49:42Z INF Requesting new quick Tunnel on trycloudflare.com...
+2025-07-26T22:49:44Z INF +--------------------------------------------------------------------------------------------+
+2025-07-26T22:49:44Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2025-07-26T22:49:44Z INF |  https://clerk-agreement-reflections-inspection.trycloudflare.com                          |
+2025-07-26T22:49:44Z INF +--------------------------------------------------------------------------------------------+
+2025-07-26T22:49:44Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]
+2025-07-26T22:49:44Z INF Version 2025.7.0 (Checksum db86f73e07133ca3e0e63b8158dbaacf39f5dd4458260cb95ccf12b35c1b6cd9)
+2025-07-26T22:49:44Z INF GOOS: linux, GOVersion: go1.24.4, GoArch: arm64
+2025-07-26T22:49:44Z INF Settings: map[ha-connections:1 protocol:quic url:http://localhost:80]
+2025-07-26T22:49:44Z INF cloudflared will not automatically update if installed by a package manager.
+2025-07-26T22:49:44Z INF Generated Connector ID: 5d3833a5-5e0a-43cb-9bda-a09ac6dd9af5
+2025-07-26T22:49:44Z INF Initial protocol quic
+2025-07-26T22:49:44Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-26T22:49:44Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-26T22:49:44Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-26T22:49:44Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-26T22:49:44Z INF Starting metrics server on 127.0.0.1:20243/metrics
+2025-07-26T22:49:44Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.200.113
+2025-07-26T22:49:45Z INF Registered tunnel connection connIndex=0 connection=c97ed3b4-d477-4074-b4a7-591c637f3043 event=0 ip=198.41.200.113 location=pdx02 protocol=quic
+Traceback (most recent call last):
+  File "/home/admin/Projects/automation-hub/automation-hub/app.py", line 4, in <module>
+    from database import DatabaseManager
+  File "/home/admin/Projects/automation-hub/automation-hub/database.py", line 1, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+2025-07-27T04:25:06Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
+2025-07-27T04:25:06Z INF Requesting new quick Tunnel on trycloudflare.com...
+2025-07-27T04:25:10Z INF +--------------------------------------------------------------------------------------------+
+2025-07-27T04:25:10Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2025-07-27T04:25:10Z INF |  https://iron-manner-kingdom-inquiry.trycloudflare.com                                     |
+2025-07-27T04:25:10Z INF +--------------------------------------------------------------------------------------------+
+2025-07-27T04:25:10Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]
+2025-07-27T04:25:10Z INF Version 2025.7.0 (Checksum db86f73e07133ca3e0e63b8158dbaacf39f5dd4458260cb95ccf12b35c1b6cd9)
+2025-07-27T04:25:10Z INF GOOS: linux, GOVersion: go1.24.4, GoArch: arm64
+2025-07-27T04:25:10Z INF Settings: map[ha-connections:1 protocol:quic url:http://localhost:80]
+2025-07-27T04:25:10Z INF cloudflared will not automatically update if installed by a package manager.
+2025-07-27T04:25:10Z INF Generated Connector ID: 065c2ef2-4a95-4573-b8ca-7e020a6d2cec
+2025-07-27T04:25:10Z INF Initial protocol quic
+2025-07-27T04:25:10Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-27T04:25:10Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-27T04:25:10Z INF ICMP proxy will use 192.168.88.12 as source for IPv4
+2025-07-27T04:25:10Z INF ICMP proxy will use fd00::e3ee:407e:ccc2:90fb in zone wlan0 as source for IPv6
+2025-07-27T04:25:10Z INF Starting metrics server on 127.0.0.1:20241/metrics
+2025-07-27T04:25:10Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.167
+2025-07-27T04:25:10Z INF Registered tunnel connection connIndex=0 connection=bb93af3d-c412-4301-a1a6-8378e4c49941 event=0 ip=198.41.192.167 location=sea01 protocol=quic
+2025-07-27T05:19:23Z ERR Failed to serve tunnel connection error="context canceled" connIndex=0 event=0 ip=198.41.192.167
+2025-07-27T05:19:23Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.167
+2025-07-27T05:19:23Z WRN Failed to serve tunnel connection error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2025-07-27T05:19:23Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.67
+2025-07-27T05:19:23Z ERR Failed to serve tunnel connection error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.113
+2025-07-27T05:19:23Z ERR Serve tunnel error error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.113
+2025-07-27T05:19:23Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.200.113
+2025-07-27T05:19:23Z ERR Connection terminated error="context canceled" connIndex=0
+2025-07-27T05:19:24Z ERR Connection terminated error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0
+2025-07-27T05:19:24Z ERR Connection terminated error="context canceled" connIndex=0
+2025-07-27T05:19:25Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.200.113
+2025-07-27T05:19:27Z INF Registered tunnel connection connIndex=0 connection=4748f57c-e4c0-451d-827b-31e3a0dfc84e event=0 ip=198.41.200.113 location=pdx02 protocol=quic
+2025-07-27T05:19:31Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2025-07-27T05:19:31Z INF Registered tunnel connection connIndex=0 connection=b600de40-152c-4b96-b4dc-fd381e6634c2 event=0 ip=198.41.192.67 location=sea01 protocol=quic
+2025-07-27T05:19:37Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.167
+2025-07-27T05:19:37Z INF Registered tunnel connection connIndex=0 connection=73fdfe50-6c00-4c2e-a8a5-7331e96c60eb event=0 ip=198.41.192.167 location=sea01 protocol=quic
+2025-07-27T08:19:51Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2025-07-30T16:32:24Z WRN Failed to serve tunnel connection error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2025-07-30T16:32:24Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.67
+2025-07-30T16:32:25Z ERR Connection terminated error="context canceled" connIndex=0
+2025-07-30T16:32:35Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2025-07-30T16:32:36Z INF Registered tunnel connection connIndex=0 connection=5460e014-2594-4400-ae63-e59abad3136c event=0 ip=198.41.192.67 location=sea01 protocol=quic
+2025-07-30T16:39:48Z WRN Failed to serve tunnel connection error="context canceled" connIndex=0 event=0 ip=198.41.192.167
+2025-07-30T16:39:48Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.167
+2025-07-30T16:39:49Z ERR Connection terminated error="context canceled" connIndex=0
+2025-07-30T16:40:00Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.167
+2025-07-30T16:40:00Z INF Registered tunnel connection connIndex=0 connection=f892710c-867a-4667-8317-f05facdeccc2 event=0 ip=198.41.192.167 location=sea01 protocol=quic
+2025-07-30T22:54:30Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2025-07-31T06:04:36Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2025-07-31T14:05:31Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2025-07-31T23:20:13Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2025-08-01T05:59:45Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"

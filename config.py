@@ -4,9 +4,9 @@ from datetime import datetime
 class Config:
     # Database configuration
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_USER = os.getenv('DB_USER', 'postgres')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', 'polymath88')
-    DB_PORT = os.getenv('DB_PORT', '5433')
+    DB_USER = os.getenv('DB_USER', 'admin')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'rangerskip')
+    DB_PORT = os.getenv('DB_PORT', '5432')
     
     # Testing flag - set to True for test database
     TESTING = os.getenv('TESTING', 'False').lower() == 'true'    
