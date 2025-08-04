@@ -5,8 +5,6 @@ Tests the complete workflow from form submission to markdown generation.
 """
 
 import requests
-import json
-import time
 from datetime import datetime, date
 
 # Configuration
