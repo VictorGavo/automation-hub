@@ -4,13 +4,14 @@ A Flask-based automation server that streamlines daily reflection workflows by p
 
 ## Features
 
-- **Form Processing**: Automated webhook endpoints for SOD/EOD form submissions via Google Apps Script
+- **Enhanced Form Processing**: Robust webhook endpoints with advanced field mapping and error handling
+- **Smart Data Processing**: Handles form field variations, empty data, and malformed inputs gracefully  
 - **Markdown Generation**: Dynamic daily note templates with Obsidian-compatible formatting and dataview queries
 - **Database Integration**: PostgreSQL storage with JSON support for flexible form data handling
-- **Notion Integration**: Real-time synchronization with Daily Capture pages and template updates
+- **Notion Integration**: Real-time synchronization with Daily Capture pages and comprehensive error handling
 - **Goal Management**: Obsidian vault integration for current goal tracking and display
 - **File System Sync**: Google Drive integration for seamless cross-device access
-- **Previous Day Validation**: Smart checks to ensure workflow continuity and completion tracking
+- **Comprehensive Validation**: Smart checks for workflow continuity and detailed logging
 
 ## Quick Start
 
@@ -116,17 +117,23 @@ The project includes comprehensive testing utilities:
 # Test complete workflow
 python test_full_integration.py
 
+# Test enhanced SOD/EOD processing (NEW)
+python test_enhanced_processing.py
+
 # Test individual components
 python test_core_functionality.py
 python test_notion.py
 python test_obsidian_goals.py
+
+# Debug data processing issues
+python debug_form_data.py
 
 # Run all tests
 python run_tests.py
 ```
 
 > [!TIP]
-> Tests use yesterday's date by default to avoid overwriting current daily data.
+> Tests use yesterday's date by default to avoid overwriting current daily data. The enhanced processing test uses future dates for comprehensive validation.
 
 ## Mobile Capture Strategy
 
