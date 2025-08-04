@@ -105,3 +105,48 @@ python test_markdown.py
 # Test webhook with sample data
 python test_webhook.py
 ```
+
+## Development Approach
+
+### 🎯 Self-Driven Development Branch
+
+**Philosophy**: This branch emphasizes hands-on learning and manual coding to build deep understanding of the system.
+
+**Learning Goals**:
+- Master Flask application architecture and routing
+- Understand PostgreSQL database operations and JSON handling  
+- Learn API integration patterns (Notion, Google Drive)
+- Practice Python testing, debugging, and best practices
+- Build problem-solving and troubleshooting skills
+
+### Development Workflow
+
+**📚 Research First**: 
+- Read documentation thoroughly before coding
+- Understand the problem domain and requirements
+- Study existing code patterns in the project
+
+**🔨 Manual Implementation**:
+- Write code yourself without AI assistance
+- Break complex problems into smaller pieces
+- Use print statements and logging for debugging
+- Test incrementally as you build
+
+**🧪 Test-Driven Approach**:
+- Write tests before implementing features
+- Run tests frequently to catch issues early
+- Use the existing test suite as examples
+
+### Available Resources
+
+- **Flask docs**: https://flask.palletsprojects.com/
+- **PostgreSQL Python**: https://www.psycopg.org/docs/
+- **Notion API**: https://developers.notion.com/
+- **Python testing**: https://docs.pytest.org/
+
+### Next Development Tasks
+
+1. **Fix SOD form data mapping** (see daily notes for specific issues)
+2. **Debug EOD processing logic** (captures not updating correctly)  
+3. **Improve template generation** (success criteria population)
+4. **Plan Raspberry Pi deployment** (replace Cloudflare tunneling)
