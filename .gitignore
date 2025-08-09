@@ -1,26 +1,60 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*.class
 *.so
+.Python
+automation-env/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual Environment
-automation-env/
 venv/
 ENV/
 
-# IDE
-.vscode/
-.idea/
-
-# Project specific
-cache/
-daily_notes/
+# Environment files
 .env
-"C:\Users\*"
+*.env
 
-# Local development
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and databases
 *.log
+nohup.out
+*.sqlite3
+*.db
+
+# Cache
+cache/
+.cache/
+
+# Temporary files
+*~
+*.bak
+*.tmp
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
