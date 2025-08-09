@@ -1,8 +1,26 @@
-.env
-daily_notes/
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.DS_Store
+*.pyd
+.Python
+*.so
+
+# Virtual Environment
+automation-env/
+venv/
+ENV/
+
+# IDE
 .vscode/
-.github/
+.idea/
+
+# Project specific
+cache/
+daily_notes/
+.env
+"C:\Users\*"
+
+# Local development
+*.log
+.DS_Store
