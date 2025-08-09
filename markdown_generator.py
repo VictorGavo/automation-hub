@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import os
 import re
 from typing import List, Dict
+from typing import List
 from config import Config
 import logging
 
@@ -143,7 +144,9 @@ class MarkdownGenerator:
         'error': None
         }
 
-        # Enhanced Notion captures processing with detailed logging and error handling
+
+        # Process Notion captures if EOD data exists (indicating end of day processing)
+
         if daily_entry['eod_data'] and Config.NOTION_ENABLED:
             try:
                 from notion_manager import NotionManager
@@ -163,10 +166,19 @@ class MarkdownGenerator:
                         print(f"  • '{header}': {len(items)} items")
                     
                     # Format for markdown with validation
+                # Get captures from Notion
+                capture_result = notion_manager.get_daily_capture_content()
+                
+                if capture_result['success'] and capture_result['content']:
+                    # print(f"DEBUG: Found {len(capture_result['content'])} content sections")
+                    # for header, items in capture_result['content'].items():
+                    #     print(f"DEBUG: Section '{header}' has {len(items)} items")
+                    
+                    # Format for markdown
                     notion_markdown = notion_manager.format_content_for_markdown(
                         capture_result['content']
                     )
-                    
+
                     print(f"📝 Generated {len(notion_markdown)} characters of markdown")
                     if len(notion_markdown) > 0:
                         print(f"   Preview: {notion_markdown[:100]}...")
@@ -181,6 +193,16 @@ class MarkdownGenerator:
                         
                         added_lines = len(updated_lines) - original_lines
                         print(f"✅ Imported captures (+{added_lines} lines)")
+                    # print(f"DEBUG: Generated markdown length: {len(notion_markdown)}")
+                    # print(f"DEBUG: Generated markdown preview: {notion_markdown[:200]}...")
+                    
+                    if notion_markdown.strip():
+                        # Insert into content
+                        content_lines = content.split('\n')
+                        updated_lines = self._insert_notion_captures(content_lines, notion_markdown)
+                        content = '\n'.join(updated_lines)
+                        print(f"✅ Imported captures from Notion Daily Capture")
+                        # print(f"DEBUG: Content after insertion contains 'Quick Capture': {'Quick Capture' in content}")
 
                         notion_processing_results['captures_found'] = True
                         notion_processing_results['sections_imported'] = len([
@@ -241,7 +263,33 @@ class MarkdownGenerator:
                 print(f"❌ {error_msg}")
                 notion_processing_results['error'] = error_msg
                 logger.error(error_msg, exc_info=True)
-        
+                    
+                    # Clear the Notion page for next day
+                    clear_result = notion_manager.clear_daily_capture_page()
+                    if clear_result['success']:
+                        notion_processing_results['blocks_cleared'] = clear_result['deleted_blocks']
+                        print(f"✅ Cleared {clear_result['deleted_blocks']} items from Daily Capture")
+                    else:
+                        print(f"❌ Failed to clear Daily Capture: {clear_result['error']}")
+                        notion_processing_results['error'] = f"Clear failed: {clear_result['error']}"
+
+                    # Rebuild template sections for the next day
+                    if daily_entry['sod_data']: # Use current SOD data to rebuild tempalte
+                        rebuild_result = notion_manager.update_daily_capture_template(daily_entry['sod_data'])
+                        if rebuild_result['success']:
+                            print(f"✅ Rebuilt Daily Capture template for next day")
+                        else:
+                            print(f"❌ Failed to rebuild tempalte: {rebuild_result['error']}")
+
+                    if notion_processing_results['sections_imported'] > 0:
+                        print(f"✅ Imported {notion_processing_results['sections_imported']} capture sections from Notion")
+                else:
+                    print("ℹ️ No captures found in Notion Daily Capture page")
+                    
+            except Exception as e:
+                error_msg = f"Error processing Notion captures: {e}"
+                print(f"❌ {error_msg}")
+                notion_processing_results['error'] = error_msg        
         # Write to file
         filename = f"{date_str}.md"
         filepath = os.path.join(self.output_dir, filename)
@@ -362,7 +410,8 @@ class MarkdownGenerator:
         return [f"<< [[My Calendar/My Daily Notes/{prev_date}|{prev_date}]] | [[My Calendar/My Weekly Notes/{week_str}|{week_str}]] | [[My Calendar/My Daily Notes/{next_date}|{next_date}]] >>"]
     
     def _build_reminders_section(self, daily_entry):
-        """Build reminders section with enhanced SOD data processing"""
+
+        """Build reminders section with SOD data"""
         content = []
         content.append("## Reminders")
         content.append("")
@@ -402,6 +451,37 @@ class MarkdownGenerator:
             
             for item in big3_items:
                 content.append(item)
+        # Today's Highlight
+        content.append("```ad-tip")
+        content.append("title:Today's Highlight")
+        if daily_entry['sod_data'] and "What am I looking forward to the most today?" in daily_entry['sod_data']:
+            highlight = daily_entry['sod_data']["What am I looking forward to the most today?"]
+            content.append(f"{highlight}")
+        else:
+            content.append("What am I looking forward to the most today?")
+        content.append("```")
+        content.append("")
+        
+        # Today's Big 3
+        content.append("**Today's Big 3**")
+        content.append("")
+        if daily_entry['sod_data'] and "Today's Big 3" in daily_entry['sod_data']:
+            big3 = daily_entry['sod_data']["Today's Big 3"]
+            if big3:
+                items = [item.strip() for item in big3.split('\n') if item.strip()]
+                for item in items:
+                    # Check if item already starts with a number (like "1. Task")
+                    if item and item[0].isdigit() and '. ' in item[:4]:
+                        # Already numbered, use as-is
+                        content.append(item)
+                    else:
+                        # Not numbered, add numbering
+                        item_num = len([line for line in content if line and line[0].isdigit()]) + 1
+                        content.append(f"{item_num}. {item}")
+            else:
+                content.append("1. (No Big 3 data from SOD form)")
+                content.append("2. ")
+                content.append("3. ")
         else:
             content.append("1. (SOD form not completed)")
             content.append("2. ")
@@ -479,6 +559,9 @@ class MarkdownGenerator:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
             gratitude_life = normalized_data.get('gratitude_life', '')
             
+        content.append("**3 things I'm grateful for in my life:**")
+        if daily_entry['sod_data'] and "3 things I'm grateful for in my life:" in daily_entry['sod_data']:
+            gratitude_life = daily_entry['sod_data']["3 things I'm grateful for in my life:"]
             if gratitude_life:
                 items = [item.strip() for item in gratitude_life.split('\n') if item.strip()]
                 for item in items:
@@ -490,10 +573,13 @@ class MarkdownGenerator:
         content.append("")
         
         content.append("**3 things I'm grateful for about myself:**")
+
         if daily_entry['sod_data']:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
             gratitude_self = normalized_data.get('gratitude_self', '')
             
+        if daily_entry['sod_data'] and "3 things I'm grateful about myself:" in daily_entry['sod_data']:
+            gratitude_self = daily_entry['sod_data']["3 things I'm grateful about myself:"]
             if gratitude_self:
                 items = [item.strip() for item in gratitude_self.split('\n') if item.strip()]
                 for item in items:
@@ -503,7 +589,7 @@ class MarkdownGenerator:
         else:
             content.append("- (SOD form not completed)")
         content.append("")
-        
+
         # Enhanced Morning Mindset
         content.append("### Morning Mindset")
         content.append("")
@@ -545,6 +631,33 @@ class MarkdownGenerator:
                 content.append("(Not provided in SOD form)")
                 logger.warning(f"Missing answer for question: {question_text}")
             
+        # Morning Mindset
+        content.append("### Morning Mindset")
+        content.append("")
+        
+        mindset_questions = [
+            "I'm excited today for:",
+            "One word to describe the person I want to be today would be __ because:",
+            "Someone who needs me on my a-game today is:",
+            "What's a potential obstacle/stressful situation for today and how would my best self deal with it?",
+            "Someone I could surprise with a note, gift, or sign of appreciation is:",
+            "One action I could take today to demonstrate excellence or real value is:",
+            "One bold action I could take today is:",
+            "An overseeing high performance coach would tell me today that:",
+            "The big projects I should keep in mind, even if I don't work on them today, are:",
+            "I know today would be successful if I did or felt this by the end:"
+        ]
+        
+        for question in mindset_questions:
+            content.append(f"**{question}**")
+            if daily_entry['sod_data'] and question in daily_entry['sod_data']:
+                answer = daily_entry['sod_data'][question]
+                if answer and answer.strip():
+                    content.append(f"{answer}")
+                else:
+                    content.append("(Empty response in SOD form)")
+            else:
+                content.append("(SOD form not completed)")
             content.append("")
         
         return content
