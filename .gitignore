@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual Environment
+automation-env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Project specific
+cache/
+daily_notes/
+.env
+"C:\Users\*"
+
+# Local development
+*.log
+.DS_Store
