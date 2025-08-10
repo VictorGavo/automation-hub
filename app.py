@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from datetime import datetime, date
 import json
+from flask import session, redirect, url_for, render_template, send_from_directory
 from database import DatabaseManager
 from markdown_generator import MarkdownGenerator
 from config import Config
@@ -8,6 +9,7 @@ from config import Config
 app = Flask(__name__)
 app.config.from_object(Config)
 
+app.secret_key = Config.SECRET_KEY
 # Initialize database manager
 db_manager = DatabaseManager()
 
@@ -311,6 +313,39 @@ def test_notion_connection():
 
 if __name__ == '__main__':
     # Print current configuration
+    print("Starting Automation Hub...")
+    Config.print_config()
+
+    # Create tables if they don't exist
+    db_manager.create_tables()
+
+    # Start Flask app
+    app.run(debug=Config.DEBUG, host='0.0.0.0', port=5000)
+
+import os
+
+# Dashboard login route
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password', '').encode()
+        stored_hash = Config.DASHBOARD_PASSWORD_HASH.encode()
+        if bcrypt.checkpw(password, stored_hash):
+            session['dashboard_authenticated'] = True
+            return redirect(url_for('dashboard'))
+        else:
+            # Show login form with error
+            return send_from_directory(os.path.join(os.path.dirname(__file__), '../public'), 'dashboard.html')
+    # GET: show login form
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '../public'), 'dashboard.html')
+
+# Dashboard route (protected)
+@app.route('/dashboard', methods=['GET'])
+def dashboard():
+    if not session.get('dashboard_authenticated'):
+        return redirect(url_for('login'))
+    # Serve dashboard.html from public directory
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '../public'), 'dashboard.html')
     print("Starting Automation Hub...")
     Config.print_config()
     
