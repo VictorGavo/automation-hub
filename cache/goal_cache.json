@@ -1,0 +1,52 @@
+{
+  "goals": {
+    "yearly": {
+      "title": "[Create 2025 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025. Create one in Obsidian.",
+      "found": false,
+      "error": "Goals folder not found",
+      "last_updated": "2025-08-04T14:10:25.382722"
+    },
+    "quarterly": {
+      "title": "[Create 2025-Q3 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-Q3. Create one in Obsidian.",
+      "found": false,
+      "error": "Goals folder not found",
+      "last_updated": "2025-08-04T14:10:25.382736"
+    },
+    "monthly": {
+      "title": "[Create 2025-M7 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-M7. Create one in Obsidian.",
+      "found": false,
+      "error": "Goals folder not found",
+      "last_updated": "2025-08-04T14:10:25.382742"
+    },
+    "weekly": {
+      "title": "[Create 2025-W30 Goal]",
+      "description": "",
+      "why": "",
+      "status": "",
+      "summary": "No goal found for 2025-W30. Create one in Obsidian.",
+      "found": false,
+      "error": "Goals folder not found",
+      "last_updated": "2025-08-04T14:10:25.382747"
+    }
+  },
+  "timeframes": {
+    "yearly": "2025",
+    "quarterly": "2025-Q3",
+    "monthly": "2025-M7",
+    "weekly": "2025-W30"
+  },
+  "last_updated": "2025-08-04T14:10:25.382750",
+  "target_date": "2025-07-21"
+}

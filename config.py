@@ -15,6 +15,9 @@ class Config:
     # Flask configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-here')
     DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+
+    # Dashboard password hash (bcrypt)
+    DASHBOARD_PASSWORD_HASH = os.getenv('DASHBOARD_PASSWORD_HASH', '$2b$12$JQwP13HGItAgi51Gyt5YEegz2VUC01rfjhDizFCCVRQz2ZvQK/6yW')
     
     # Google Drive Configuration
     GOOGLE_DRIVE_ENABLED = os.getenv('GOOGLE_DRIVE_ENABLED', 'False').lower() == 'true'
