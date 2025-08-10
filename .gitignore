@@ -39,6 +39,9 @@ ENV/
 *.log
 *Users*/
 nohup.out
+
+# Exclude Windows-style folder from repo
+C:\Users\Victo\Documents\Growth\Ultimate Starter Vault 2.1\USV\My Calendar\My Daily Notes/
 *.sqlite3
 *.db
 
