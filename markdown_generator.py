@@ -265,24 +265,24 @@ class MarkdownGenerator:
                 logger.error(error_msg, exc_info=True)
                     
                     # Clear the Notion page for next day
-                    clear_result = notion_manager.clear_daily_capture_page()
-                    if clear_result['success']:
-                        notion_processing_results['blocks_cleared'] = clear_result['deleted_blocks']
-                        print(f"✅ Cleared {clear_result['deleted_blocks']} items from Daily Capture")
+                clear_result = notion_manager.clear_daily_capture_page()
+                if clear_result['success']:
+                    notion_processing_results['blocks_cleared'] = clear_result['deleted_blocks']
+                    print(f"✅ Cleared {clear_result['deleted_blocks']} items from Daily Capture")
+                else:
+                    print(f"❌ Failed to clear Daily Capture: {clear_result['error']}")
+                    notion_processing_results['error'] = f"Clear failed: {clear_result['error']}"
+
+                # Rebuild template sections for the next day
+                if daily_entry['sod_data']: # Use current SOD data to rebuild tempalte
+                    rebuild_result = notion_manager.update_daily_capture_template(daily_entry['sod_data'])
+                    if rebuild_result['success']:
+                        print(f"✅ Rebuilt Daily Capture template for next day")
                     else:
-                        print(f"❌ Failed to clear Daily Capture: {clear_result['error']}")
-                        notion_processing_results['error'] = f"Clear failed: {clear_result['error']}"
+                        print(f"❌ Failed to rebuild tempalte: {rebuild_result['error']}")
 
-                    # Rebuild template sections for the next day
-                    if daily_entry['sod_data']: # Use current SOD data to rebuild tempalte
-                        rebuild_result = notion_manager.update_daily_capture_template(daily_entry['sod_data'])
-                        if rebuild_result['success']:
-                            print(f"✅ Rebuilt Daily Capture template for next day")
-                        else:
-                            print(f"❌ Failed to rebuild tempalte: {rebuild_result['error']}")
-
-                    if notion_processing_results['sections_imported'] > 0:
-                        print(f"✅ Imported {notion_processing_results['sections_imported']} capture sections from Notion")
+                if notion_processing_results['sections_imported'] > 0:
+                    print(f"✅ Imported {notion_processing_results['sections_imported']} capture sections from Notion")
                 else:
                     print("ℹ️ No captures found in Notion Daily Capture page")
                     
