@@ -37,6 +37,7 @@ ENV/
 
 # Logs and databases
 *.log
+*Users*/
 nohup.out
 *.sqlite3
 *.db

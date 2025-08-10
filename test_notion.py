@@ -5,16 +5,12 @@ Tests connection, content parsing, and integration with markdown generation.
 """
 
 import os
-<<<<<<< HEAD
-from datetime import datetime, date
-=======
 import sys
 from datetime import datetime, date
 import json
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
->>>>>>> origin/main
 
 from config import Config
 from notion_manager import NotionManager

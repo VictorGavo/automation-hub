@@ -3,10 +3,7 @@
 Test script for EOD webhook functionality
 """
 import requests
-<<<<<<< HEAD
-=======
 import json
->>>>>>> origin/main
 from datetime import datetime, date
 
 # Configuration

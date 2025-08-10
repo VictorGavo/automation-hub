@@ -5,11 +5,8 @@ Tests the complete workflow from form submission to markdown generation.
 """
 
 import requests
-<<<<<<< HEAD
-=======
 import json
 import time
->>>>>>> origin/main
 from datetime import datetime, date
 
 # Configuration
