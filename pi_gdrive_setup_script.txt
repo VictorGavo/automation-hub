@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# Raspberry Pi Google Drive Setup Script
+# This script helps set up Google Drive sync on Raspberry Pi for the automation hub
+
+set -e
+
+echo "========================================="
+echo "  Automation Hub - Google Drive Setup"
+echo "========================================="
+echo
+
+# Check if running as root
+if [ "$EUID" -eq 0 ]; then
+    echo "❌ Please don't run this script as root"
+    echo "   Run as your regular user instead"
+    exit 1
+fi
+
+# Function to print status messages
+print_status() {
+    echo "🔄 $1"
+}
+
+print_success() {
+    echo "✅ $1"
+}
+
+print_error() {
+    echo "❌ $1"
+}
+
+print_warning() {
+    echo "⚠️  $1"
+}
+
+# Check system
+print_status "Checking system requirements..."
+
+# Check if on Raspberry Pi
+if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+    print_warning "This doesn't appear to be a Raspberry Pi"
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Update package list
+print_status "Updating package list..."
+sudo apt update
+
+# Install required packages
+print_status "Installing required packages..."
+sudo apt install -y \
+    python3-pip \
+    git \
+    curl \
+    wget \
+    unzip \
+    fuse \
+    build-essential \
+    pkg-config \
+    libfuse-dev \
+    libssl-dev \
+    libcurl4-openssl-dev
+
+print_success "System packages installed"
+
+# Choose Google Drive method
+echo
+echo "Choose Google Drive sync method:"
+echo "1. google-drive-ocamlfuse (Recommended - FUSE filesystem)"
+echo "2. rclone (Alternative - mount as drive)"
+echo "3. insync (Commercial - has GUI)"
+echo
+
+read -p "Select option (1-3): " -n 1 -r
+echo
+
+case $REPLY in
+    1)
+        install_ocamlfuse
+        ;;
+    2)
+        install_rclone
+        ;;
+    3)
+        install_insync
+        ;;
+    *)
+        print_error "Invalid option"
+        exit 1
+        ;;
+esac
+
+# Function to install google-drive-ocamlfuse
+install_ocamlfuse() {
+    print_status "Installing google-drive-ocamlfuse..."
+    
+    # Add repository
+    sudo add-apt-repository -y ppa:alessandro-strada/ppa
+    sudo apt update
+    
+    # Install
+    sudo apt install -y google-drive-ocamlfuse
+    
+    print_success "google-drive-ocamlfuse installed"
+    
+    # Create mount directory
+    MOUNT_DIR="$HOME/GoogleDrive"
+    mkdir -p "$MOUNT_DIR"
+    
+    print_status "Setting up Google Drive authentication..."
+    print_warning "This will open a web browser for authentication"
+    print_warning "If you're on a headless Pi, you'll need to:"
+    print_warning "1. Run this from a machine with a browser, OR"
+    print_warning "2. Use SSH with X forwarding (ssh -X), OR"
+    print_warning "3. Set up the auth on another machine and copy the config"
+    
+    read -p "Continue with authentication? (y/N): " -n 1 -r
+    echo
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        google-drive-ocamlfuse
+        print_success "Authentication completed"
+        
+        # Mount Google Drive
+        google-drive-ocamlfuse "$MOUNT_DIR"
+        print_success "Google Drive mounted at $MOUNT_DIR"
+        
+        # Create target directory structure
+        TARGET_DIR="$MOUNT_DIR/USV/My Calendar/My Daily Notes"
+        mkdir -p "$TARGET_DIR"
+        print_success "Created target directory: $TARGET_DIR"
+        
+        # Test write access
+        TEST_FILE="$TARGET_DIR/automation_test.md"
+        echo "# Test File" > "$TEST_FILE"
+        echo "This file was created by the automation setup script." >> "$TEST_FILE"
+        echo "Created: $(date)" >> "$TEST_FILE"
+        
+        if [ -f "$TEST_FILE" ]; then
+            print_success "Write test successful - automation can write to Google Drive"
+            rm "$TEST_FILE"
+        else
+            print_error "Write test failed"
+        fi
+        
+        # Set up auto-mount
+        setup_automount_ocamlfuse "$MOUNT_DIR"
+    fi
+}
+
+# Function to install rclone
+install_rclone() {
+    print_status "Installing rclone..."
+    
+    curl https://rclone.org/install.sh | sudo bash
+    
+    print_success "rclone installed"
+    
+    print_status "Setting up rclone configuration..."
+    print_warning "You'll need to configure Google Drive manually"
+    print_warning "Run: rclone config"
+    print_warning "Then: rclone mount gdrive: ~/GoogleDrive --daemon"
+}
+
+# Function to install insync
+install_insync() {
+    print_status "Installing Insync..."
+    
+    # Add Insync repository
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ACCAF35C
+    echo "deb http://apt.insync.io/ubuntu focal non-free contrib" | sudo tee /etc/apt/sources.list.d/insync.list
+    sudo apt update
+    
+    # Install Insync headless version
+    sudo apt install -y insync-headless
+    
+    print_success "Insync installed"
+    print_warning "You'll need to authenticate Insync manually"
+    print_warning "Run: insync-headless start"
+    print_warning "Then follow the authentication instructions"
+}
+
+# Function to set up auto-mount for ocamlfuse
+setup_automount_ocamlfuse() {
+    local mount_dir=$1
+    
+    print_status "Setting up auto-mount on boot..."
+    
+    # Create systemd service
+    SERVICE_FILE="/etc/systemd/system/google-drive-mount.service"
+    
+    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+[Unit]
+Description=Google Drive Mount
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$USER
+Group=$USER
+ExecStartPre=/bin/mkdir -p $mount_dir
+ExecStart=/usr/bin/google-drive-ocamlfuse $mount_dir
+ExecStop=/bin/fusermount -u $mount_dir
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Enable and start service
+    sudo systemctl daemon-reload
+    sudo systemctl enable google-drive-mount.service
+    sudo systemctl start google-drive-mount.service
+    
+    print_success "Auto-mount service created and started"
+    
+    # Check service status
+    if systemctl is-active --quiet google-drive-mount.service; then
+        print_success "Google Drive mount service is running"
+    else
+        print_warning "Google Drive mount service may have issues"
+        echo "Check with: sudo systemctl status google-drive-mount.service"
+    fi
+}
+
+# Test the automation setup
+test_automation_setup() {
+    print_status "Testing automation setup..."
+    
+    TARGET_DIR="$HOME/GoogleDrive/USV/My Calendar/My Daily Notes"
+    
+    if [ ! -d "$TARGET_DIR" ]; then
+        print_error "Target directory not found: $TARGET_DIR"
+        print_warning "You may need to create this directory structure in Google Drive"
+        return 1
+    fi
+    
+    # Test Python script
+    cat > test_automation.py <<EOF
+#!/usr/bin/env python3
+
+import os
+import sys
+from datetime import datetime
+
+# Add automation hub to path
+sys.path.append('/home/pi/automation-hub')
+
+try:
+    from filesystem_drive_manager import FileSystemDriveManager
+    
+    # Test the manager
+    sync_path = "$TARGET_DIR"
+    manager = FileSystemDriveManager(sync_path)
+    
+    # Test folder access
+    test_result = manager.test_sync_folder_access()
+    
+    if test_result['success']:
+        print("✅ Automation setup test passed!")
+        print(f"📁 Sync folder: {test_result['sync_folder_path']}")
+        print(f"📄 Existing files: {test_result['existing_files_count']}")
+        if test_result.get('warning'):
+            print(f"⚠️  {test_result['warning']}")
+    else:
+        print("❌ Automation setup test failed!")
+        print(f"Error: {test_result['error']}")
+        sys.exit(1)
+        
+except ImportError as e:
+    print("❌ Could not import automation hub modules")
+    print("Make sure the automation hub is installed at /home/pi/automation-hub")
+    print(f"Error: {e}")
+    sys.exit(1)
+EOF
+
+    python3 test_automation.py
+    rm test_automation.py
+}
+
+# Main execution
+echo
+echo "Setup completed! Next steps:"
+echo
+echo "1. 🔧 Clone your automation hub to /home/pi/automation-hub"
+echo "2. 📝 Update config.py with:"
+echo "   GOOGLE_DRIVE_ENABLED=True"
+echo "   GOOGLE_DRIVE_METHOD='filesystem'"
+echo "   GOOGLE_DRIVE_SYNC_PATH='$HOME/GoogleDrive/USV/My Calendar/My Daily Notes'"
+echo "3. 🧪 Test the setup with the automation hub"
+echo
+echo "🎉 Google Drive sync is ready for your automation!"
+
+# Offer to run test if automation hub exists
+if [ -d "/home/pi/automation-hub" ]; then
+    echo
+    read -p "Test automation setup now? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        test_automation_setup
+    fi
+fi
