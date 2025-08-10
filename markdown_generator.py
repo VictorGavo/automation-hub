@@ -573,7 +573,6 @@ class MarkdownGenerator:
         content.append("")
         
         content.append("**3 things I'm grateful for about myself:**")
-
         if daily_entry['sod_data']:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
             gratitude_self = normalized_data.get('gratitude_self', '')
