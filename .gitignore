@@ -62,3 +62,5 @@ cache/
 .Trashes
 ehthumbs.db
 Thumbs.db
+*.md
+C:/*
