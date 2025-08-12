@@ -11,7 +11,7 @@ app.config.from_object(Config)
 
 app.secret_key = Config.SECRET_KEY
 # Initialize database manager
-# db_manager = DatabaseManager() # COMMENTED OUT FOR LOCAL DEV
+db_manager = DatabaseManager() # COMMENTED OUT FOR LOCAL DEV
 
 @app.route('/health', methods=['GET'])
 def health_check():
