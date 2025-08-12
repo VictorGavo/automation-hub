@@ -11,7 +11,7 @@ app.config.from_object(Config)
 
 app.secret_key = Config.SECRET_KEY
 # Initialize database manager
-db_manager = DatabaseManager()
+# db_manager = DatabaseManager() # COMMENTED OUT FOR LOCAL DEV
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -317,7 +317,7 @@ if __name__ == '__main__':
     Config.print_config()
 
     # Create tables if they don't exist
-    db_manager.create_tables()
+    # db_manager.create_tables() # COMMENTED OUT FOR LOCAL DEV
 
     # Start Flask app
     app.run(debug=Config.DEBUG, host='0.0.0.0', port=5000)
