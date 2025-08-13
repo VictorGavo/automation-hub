@@ -236,14 +236,17 @@ class DatabaseManager:
     def get_daily_entry(self, date_obj):
         """Get complete daily entry for a specific date"""
         try:
-            cursor = self.connection.cursor()
+            if self.db_type == 'postgresql':
+                cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            else:
+                cursor = self.connection.cursor()
+                
             date_str = self._convert_date_for_storage(date_obj)
             
-            cursor.execute('''
-                SELECT * FROM daily_entries WHERE date = ?
-            ''' if self.db_type == 'sqlite' else '''
-                SELECT * FROM daily_entries WHERE date = %s
-            ''', (date_str,))
+            if self.db_type == 'sqlite':
+                cursor.execute('SELECT * FROM daily_entries WHERE date = ?', (date_str,))
+            else:
+                cursor.execute('SELECT * FROM daily_entries WHERE date = %s', (date_str,))
             
             result = cursor.fetchone()
             cursor.close()
@@ -263,7 +266,7 @@ class DatabaseManager:
                         'updated_at': self._convert_datetime_from_storage(result_dict['updated_at'])
                     }
                 else:
-                    # PostgreSQL with psycopg2.extras.RealDictCursor
+                    # PostgreSQL with RealDictCursor
                     return {
                         'id': result['id'],
                         'date': result['date'],
