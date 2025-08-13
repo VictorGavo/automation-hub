@@ -1,6 +1,7 @@
 flask==2.3.3
 psycopg2-binary==2.9.7
 requests==2.31.0
+bcrypt==4.0.1
 # Google Drive dependencies (optional - only needed for OAuth method)
 google-api-python-client==2.103.0
 google-auth-httplib2==0.1.1

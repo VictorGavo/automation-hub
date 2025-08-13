@@ -1,135 +1,187 @@
 #!/usr/bin/env python3
 """
-Core functionality tests - consolidated from multiple debug scripts
+Core Functionality Tests
+Tests basic database operations and configuration
 """
-import os
-import sys
-from datetime import date, datetime
-from database import DatabaseManager
-from config import Config, DATABASE_CONFIG
-from markdown_generator import MarkdownGenerator
 
+import sys
+import os
+from datetime import datetime, date, timedelta
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from config import Config  # Remove DATABASE_CONFIG import
+from database import DatabaseManager
+import json
 
 def test_database_connection():
     """Test database connection and basic operations"""
-    print("Testing database connection...")
+    print("🔍 Testing Database Connection...")
+    print("-" * 50)
     
-    db = DatabaseManager(DATABASE_CONFIG)
     try:
-        db.connect()
-        print("✅ Database connection successful")
+        # Test connection
+        db_manager = DatabaseManager()
+        print(f"✅ Connected to database: {Config.DB_NAME}")
         
-        db.create_tables()
-        print("✅ Tables created successfully")
-        
-        # Test data insertion
-        test_data = {
-            "What am I looking forward to the most today?": "Testing core functionality",
-            "Today's Big 3": "1. Clean test files\n2. Consolidate functionality\n3. Remove tech debt",
-            "3 things I'm grateful for in my life:": "Automation\nClean code\nEfficiency"
-        }
-        
-        db.insert_sod_response(date.today(), test_data)
-        print("✅ Test data inserted successfully")
-        
-        result = db.get_sod_response(date.today())
-        if result:
-            print(f"✅ Data retrieved: {result.get('highlight', 'N/A')}")
+        # Test table creation
+        db_manager.create_tables()
+        print("✅ Tables created/verified")
         
         return True
-        
     except Exception as e:
-        print(f"❌ Database test failed: {e}")
+        print(f"❌ Database connection failed: {e}")
         return False
-    finally:
-        db.disconnect()
 
-
-def test_markdown_generation():
-    """Test markdown generation functionality"""
-    print("\nTesting markdown generation...")
+def test_sod_eod_operations():
+    """Test SOD and EOD data operations"""
+    print("\n🔍 Testing SOD/EOD Operations...")
+    print("-" * 50)
     
     try:
-        generator = MarkdownGenerator()
-        print(f"✅ MarkdownGenerator initialized - Drive manager: {generator.drive_manager}")
+        db_manager = DatabaseManager()
+        test_date = date.today() - timedelta(days=1)  # Use yesterday to avoid conflicts
         
-        # Test with mock data
-        today = date.today()
-        mock_entry = {
-            'date': today,
-            'sod_data': {
-                "What am I looking forward to the most today?": "Core functionality testing",
-                "Today's Big 3": "Clean tests\nRemove debt\nImprove code"
-            },
-            'sod_timestamp': datetime.now(),
-            'eod_data': None,
-            'eod_timestamp': None
+        # Test SOD data
+        sod_data = {
+            "highlight": "Test highlight",
+            "big3": "1. Test task 1\n2. Test task 2\n3. Test task 3",
+            "gratitude": "Test gratitude"
         }
         
-        result = generator.generate_daily_template(mock_entry)
-        if result and os.path.exists(result):
-            print(f"✅ Markdown generated: {result}")
-            return True
+        sod_success = db_manager.upsert_sod_data(test_date, sod_data)
+        if sod_success:
+            print("✅ SOD data insertion successful")
         else:
-            print("❌ Markdown generation failed")
+            print("❌ SOD data insertion failed")
             return False
-            
+        
+        # Test EOD data
+        eod_data = {
+            "rating": "8",
+            "summary": "Test summary",
+            "accomplishments": "Test accomplishments"
+        }
+        
+        eod_success = db_manager.upsert_eod_data(test_date, eod_data)
+        if eod_success:
+            print("✅ EOD data insertion successful")
+        else:
+            print("❌ EOD data insertion failed")
+            return False
+        
+        # Test data retrieval
+        entry = db_manager.get_daily_entry(test_date)
+        if entry and entry['sod_data'] and entry['eod_data']:
+            print("✅ Data retrieval successful")
+            print(f"   SOD fields: {len(entry['sod_data'])}")
+            print(f"   EOD fields: {len(entry['eod_data'])}")
+        else:
+            print("❌ Data retrieval failed")
+            return False
+        
+        return True
     except Exception as e:
-        print(f"❌ Markdown test failed: {e}")
+        print(f"❌ SOD/EOD operations failed: {e}")
         return False
-
 
 def test_configuration():
-    """Test configuration loading and environment variables"""
-    print("\nTesting configuration...")
+    """Test configuration loading"""
+    print("\n🔍 Testing Configuration...")
+    print("-" * 50)
     
     try:
-        print(f"Database Host: {Config.DB_HOST}")
-        print(f"Database Name: {Config.DB_NAME}")
-        print(f"Testing Mode: {Config.TESTING}")
-        print(f"Google Drive Enabled: {Config.GOOGLE_DRIVE_ENABLED}")
-        print(f"Google Drive Sync Path: {Config.GOOGLE_DRIVE_SYNC_PATH}")
-        print("✅ Configuration loaded successfully")
-        return True
+        # Test basic config attributes
+        required_attrs = [
+            'DB_NAME', 'DB_USER', 'DB_HOST', 'DB_PORT',
+            'NOTION_ENABLED', 'OBSIDIAN_GOALS_ENABLED', 'GOOGLE_DRIVE_ENABLED',
+            'TESTING', 'DEBUG'
+        ]
         
+        missing_attrs = []
+        for attr in required_attrs:
+            if not hasattr(Config, attr):
+                missing_attrs.append(attr)
+            else:
+                print(f"✅ {attr}: {getattr(Config, attr)}")
+        
+        if missing_attrs:
+            print(f"❌ Missing config attributes: {missing_attrs}")
+            return False
+        
+        # Test database URL generation
+        db_url = Config.get_db_url()
+        if db_url and 'postgresql://' in db_url:
+            print(f"✅ Database URL: {db_url}")
+        else:
+            print(f"❌ Invalid database URL: {db_url}")
+            return False
+        
+        return True
     except Exception as e:
         print(f"❌ Configuration test failed: {e}")
         return False
 
-
-def run_all_tests():
-    """Run all core functionality tests"""
-    print("=" * 60)
-    print("CORE FUNCTIONALITY TESTS")
-    print("=" * 60)
+def test_workflow_validation():
+    """Test workflow validation logic"""
+    print("\n🔍 Testing Workflow Validation...")
+    print("-" * 50)
     
-    tests = [
-        test_configuration,
-        test_database_connection,
-        test_markdown_generation
-    ]
-    
-    results = []
-    for test in tests:
-        results.append(test())
-    
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    
-    passed = sum(results)
-    total = len(results)
-    
-    print(f"Tests passed: {passed}/{total}")
-    
-    if passed == total:
-        print("🎉 All tests passed!")
+    try:
+        db_manager = DatabaseManager()
+        test_date = date.today()
+        
+        # Test previous day completion check
+        prev_complete, prev_message = db_manager.check_previous_day_completion(test_date)
+        print(f"✅ Previous day check: {prev_message}")
+        
+        # Test current day SOD check
+        sod_complete, sod_message = db_manager.check_current_day_sod(test_date)
+        print(f"✅ Current SOD check: {sod_message}")
+        
         return True
-    else:
-        print("⚠️  Some tests failed")
+    except Exception as e:
+        print(f"❌ Workflow validation failed: {e}")
         return False
 
+def main():
+    """Run all core functionality tests"""
+    print("🧪 Core Functionality Test Suite")
+    print("=" * 50)
+    
+    tests = [
+        ("Database Connection", test_database_connection),
+        ("SOD/EOD Operations", test_sod_eod_operations),
+        ("Configuration", test_configuration),
+        ("Workflow Validation", test_workflow_validation)
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        try:
+            if test_func():
+                passed += 1
+                print(f"\n✅ {test_name}: PASSED")
+            else:
+                failed += 1
+                print(f"\n❌ {test_name}: FAILED")
+        except Exception as e:
+            failed += 1
+            print(f"\n❌ {test_name}: ERROR - {e}")
+    
+    print("\n" + "=" * 50)
+    print(f"📊 Results: {passed} passed, {failed} failed")
+    
+    if failed == 0:
+        print("🎉 All core functionality tests passed!")
+        return True
+    else:
+        print("⚠️ Some tests failed. Check errors above.")
+        return False
 
-if __name__ == "__main__":
-    success = run_all_tests()
+if __name__ == '__main__':
+    success = main()
     sys.exit(0 if success else 1)

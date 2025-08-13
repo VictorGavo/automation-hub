@@ -1,29 +1,34 @@
 import psycopg2
 import psycopg2.extras
-import sqlite3
-import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from config import Config
+import sqlite3
 
 class DatabaseManager:
     def __init__(self):
         self.config = Config()
         self.connection = None
-        self.use_sqlite = getattr(self.config, 'USE_SQLITE', False) or \
-                        os.getenv('USE_SQLITE', 'False').lower() == 'true'
+        self.db_type = None
         self.connect()
     
     def connect(self):
-        """Connect to PostgreSQL or SQLite database"""
+        """Connect to PostgreSQL or SQLite database based on configuration"""
         try:
-            if self.use_sqlite:
-                print(f"Connecting to SQLite database: {self.config.DB_NAME}")
-                self.connection = sqlite3.connect(self.config.DB_NAME)
-                self.connection.row_factory = sqlite3.Row  # Makes rows dict-like
+            # Determine database type based on configuration
+            # Use SQLite if password is empty or if explicitly configured for SQLite
+            if (not self.config.DB_PASSWORD or 
+                self.config.DB_PASSWORD == '' or 
+                getattr(self.config, 'USE_SQLITE', False) or
+                self.config.TESTING):
+                # SQLite
+                self.db_type = 'sqlite'
+                self.connection = sqlite3.connect(f'{self.config.DB_NAME}.db', check_same_thread=False)
+                self.connection.row_factory = sqlite3.Row  # Enable row access by column name
                 print(f"Connected to SQLite database: {self.config.DB_NAME}")
             else:
-                print(f"Connecting to PostgreSQL database: {self.config.DB_NAME}")
+                # PostgreSQL
+                self.db_type = 'postgresql'
                 self.connection = psycopg2.connect(
                     host=self.config.DB_HOST,
                     database=self.config.DB_NAME,
@@ -31,45 +36,18 @@ class DatabaseManager:
                     password=self.config.DB_PASSWORD,
                     port=self.config.DB_PORT
                 )
-                print(f"Connected to database: {self.config.DB_NAME}")
+                print(f"Connected to PostgreSQL database: {self.config.DB_NAME}")
         except Exception as e:
             print(f"Error connecting to database: {e}")
-            raise e
-    
-    def get_cursor(self):
-        """Get appropriate cursor for database type"""
-        if self.use_sqlite:
-            return self.connection.cursor()
-        else:
-            return self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            raise
     
     def create_tables(self):
         """Create the daily_entries table with SOD and EOD support"""
         try:
-            cursor = self.get_cursor()
+            cursor = self.connection.cursor()
             
-            if self.use_sqlite:
-                # SQLite table creation
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS daily_entries (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        date DATE UNIQUE NOT NULL,
-                        sod_data TEXT,
-                        sod_timestamp TIMESTAMP,
-                        eod_data TEXT,
-                        eod_timestamp TIMESTAMP,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Create index on date for faster queries
-                cursor.execute('''
-                    CREATE INDEX IF NOT EXISTS idx_daily_entries_date 
-                    ON daily_entries(date)
-                ''')
-            else:
-                # PostgreSQL table creation
+            if self.db_type == 'postgresql':
+                # PostgreSQL schema
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS daily_entries (
                         id SERIAL PRIMARY KEY,
@@ -89,7 +67,7 @@ class DatabaseManager:
                     ON daily_entries(date)
                 ''')
                 
-                # Create trigger to update updated_at timestamp (PostgreSQL only)
+                # Create trigger to update updated_at timestamp
                 cursor.execute('''
                     CREATE OR REPLACE FUNCTION update_updated_at_column()
                     RETURNS TRIGGER AS $$
@@ -107,6 +85,26 @@ class DatabaseManager:
                         FOR EACH ROW
                         EXECUTE FUNCTION update_updated_at_column();
                 ''')
+            else:
+                # SQLite schema
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS daily_entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        date TEXT UNIQUE NOT NULL,
+                        sod_data TEXT,
+                        sod_timestamp TEXT,
+                        eod_data TEXT,
+                        eod_timestamp TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Create index on date for faster queries
+                cursor.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_daily_entries_date 
+                    ON daily_entries(date)
+                ''')
             
             self.connection.commit()
             cursor.close()
@@ -116,21 +114,67 @@ class DatabaseManager:
             self.connection.rollback()
             raise
     
-    def upsert_sod_data(self, date, sod_data):
+    def _convert_date_for_storage(self, date_obj):
+        """Convert date object to appropriate format for storage"""
+        if isinstance(date_obj, str):
+            return date_obj
+        return date_obj.strftime('%Y-%m-%d') if date_obj else None
+    
+    def _convert_date_from_storage(self, date_str):
+        """Convert stored date to date object"""
+        if isinstance(date_str, date):
+            return date_str
+        if isinstance(date_str, str):
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
+        return date_str
+    
+    def _convert_datetime_for_storage(self, datetime_obj):
+        """Convert datetime object to appropriate format for storage"""
+        if isinstance(datetime_obj, str):
+            return datetime_obj
+        return datetime_obj.isoformat() if datetime_obj else None
+    
+    def _convert_datetime_from_storage(self, datetime_str):
+        """Convert stored datetime to datetime object"""
+        if isinstance(datetime_str, datetime):
+            return datetime_str
+        if isinstance(datetime_str, str):
+            try:
+                return datetime.fromisoformat(datetime_str)
+            except:
+                return datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+        return datetime_str
+    
+    def _prepare_json_data(self, data):
+        """Prepare JSON data for storage"""
+        if self.db_type == 'postgresql':
+            return json.dumps(data) if not isinstance(data, str) else data
+        else:
+            return json.dumps(data) if data else None
+    
+    def _parse_json_data(self, data):
+        """Parse JSON data from storage"""
+        if not data:
+            return None
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, str):
+            try:
+                return json.loads(data)
+            except:
+                return None
+        return data
+    
+    def upsert_sod_data(self, date_obj, sod_data):
         """Insert or update SOD data for a given date"""
         try:
-            cursor = self.get_cursor()
+            cursor = self.connection.cursor()
             
-            if self.use_sqlite:
-                # SQLite upsert using INSERT OR REPLACE
-                json_data = json.dumps(sod_data) if not isinstance(sod_data, str) else sod_data
-                cursor.execute('''
-                    INSERT OR REPLACE INTO daily_entries (date, sod_data, sod_timestamp, updated_at)
-                    VALUES (?, ?, ?, ?)
-                ''', (date, json_data, datetime.now(), datetime.now()))
-            else:
-                # PostgreSQL upsert using ON CONFLICT
-                json_data = json.dumps(sod_data) if not isinstance(sod_data, str) else sod_data
+            date_str = self._convert_date_for_storage(date_obj)
+            json_data = self._prepare_json_data(sod_data)
+            timestamp_str = self._convert_datetime_for_storage(datetime.now())
+            
+            if self.db_type == 'postgresql':
                 cursor.execute('''
                     INSERT INTO daily_entries (date, sod_data, sod_timestamp)
                     VALUES (%s, %s::jsonb, %s)
@@ -138,32 +182,33 @@ class DatabaseManager:
                     DO UPDATE SET 
                         sod_data = EXCLUDED.sod_data,
                         sod_timestamp = EXCLUDED.sod_timestamp
-                ''', (date, json_data, datetime.now()))
+                ''', (date_str, json_data, timestamp_str))
+            else:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO daily_entries 
+                    (date, sod_data, sod_timestamp, updated_at)
+                    VALUES (?, ?, ?, ?)
+                ''', (date_str, json_data, timestamp_str, timestamp_str))
             
             self.connection.commit()
             cursor.close()
-            print(f"✅ SOD data saved for {date}")
+            print(f"✅ SOD data saved for {date_obj}")
             return True
         except Exception as e:
             print(f"Error upserting SOD data: {e}")
             self.connection.rollback()
             return False
     
-    def upsert_eod_data(self, date, eod_data):
+    def upsert_eod_data(self, date_obj, eod_data):
         """Insert or update EOD data for a given date"""
         try:
-            cursor = self.get_cursor()
+            cursor = self.connection.cursor()
             
-            if self.use_sqlite:
-                # SQLite upsert using INSERT OR REPLACE
-                json_data = json.dumps(eod_data) if not isinstance(eod_data, str) else eod_data
-                cursor.execute('''
-                    INSERT OR REPLACE INTO daily_entries (date, eod_data, eod_timestamp, updated_at)
-                    VALUES (?, ?, ?, ?)
-                ''', (date, json_data, datetime.now(), datetime.now()))
-            else:
-                # PostgreSQL upsert using ON CONFLICT
-                json_data = json.dumps(eod_data) if not isinstance(eod_data, str) else eod_data
+            date_str = self._convert_date_for_storage(date_obj)
+            json_data = self._prepare_json_data(eod_data)
+            timestamp_str = self._convert_datetime_for_storage(datetime.now())
+            
+            if self.db_type == 'postgresql':
                 cursor.execute('''
                     INSERT INTO daily_entries (date, eod_data, eod_timestamp)
                     VALUES (%s, %s::jsonb, %s)
@@ -171,49 +216,54 @@ class DatabaseManager:
                     DO UPDATE SET 
                         eod_data = EXCLUDED.eod_data,
                         eod_timestamp = EXCLUDED.eod_timestamp
-                ''', (date, json_data, datetime.now()))
+                ''', (date_str, json_data, timestamp_str))
+            else:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO daily_entries 
+                    (date, eod_data, eod_timestamp, updated_at)
+                    VALUES (?, ?, ?, ?)
+                ''', (date_str, json_data, timestamp_str, timestamp_str))
             
             self.connection.commit()
             cursor.close()
-            print(f"✅ EOD data saved for {date}")
+            print(f"✅ EOD data saved for {date_obj}")
             return True
         except Exception as e:
             print(f"Error upserting EOD data: {e}")
             self.connection.rollback()
             return False
     
-    def get_daily_entry(self, date):
+    def get_daily_entry(self, date_obj):
         """Get complete daily entry for a specific date"""
         try:
-            cursor = self.get_cursor()
+            cursor = self.connection.cursor()
+            date_str = self._convert_date_for_storage(date_obj)
             
-            if self.use_sqlite:
-                cursor.execute('''
-                    SELECT * FROM daily_entries WHERE date = ?
-                ''', (date,))
-            else:
-                cursor.execute('''
-                    SELECT * FROM daily_entries WHERE date = %s
-                ''', (date,))
+            cursor.execute('''
+                SELECT * FROM daily_entries WHERE date = ?
+            ''' if self.db_type == 'sqlite' else '''
+                SELECT * FROM daily_entries WHERE date = %s
+            ''', (date_str,))
             
             result = cursor.fetchone()
             cursor.close()
             
             if result:
-                if self.use_sqlite:
-                    # Convert SQLite row to dict and parse JSON
+                if self.db_type == 'sqlite':
+                    # Convert SQLite row to dict
+                    result_dict = dict(result)
                     return {
-                        'id': result['id'],
-                        'date': result['date'],
-                        'sod_data': json.loads(result['sod_data']) if result['sod_data'] else None,
-                        'sod_timestamp': result['sod_timestamp'],
-                        'eod_data': json.loads(result['eod_data']) if result['eod_data'] else None,
-                        'eod_timestamp': result['eod_timestamp'],
-                        'created_at': result['created_at'],
-                        'updated_at': result['updated_at']
+                        'id': result_dict['id'],
+                        'date': self._convert_date_from_storage(result_dict['date']),
+                        'sod_data': self._parse_json_data(result_dict['sod_data']),
+                        'sod_timestamp': self._convert_datetime_from_storage(result_dict['sod_timestamp']),
+                        'eod_data': self._parse_json_data(result_dict['eod_data']),
+                        'eod_timestamp': self._convert_datetime_from_storage(result_dict['eod_timestamp']),
+                        'created_at': self._convert_datetime_from_storage(result_dict['created_at']),
+                        'updated_at': self._convert_datetime_from_storage(result_dict['updated_at'])
                     }
                 else:
-                    # PostgreSQL JSONB columns are automatically parsed
+                    # PostgreSQL with psycopg2.extras.RealDictCursor
                     return {
                         'id': result['id'],
                         'date': result['date'],
@@ -260,36 +310,61 @@ class DatabaseManager:
             return False, f"Error checking SOD: {e}"
     
     def get_recent_entries(self, days=7):
-        """Get recent entries for debugging/monitoring"""
+        """Get recent entries for debugging/monitoring with fixed detection logic"""
         try:
-            cursor = self.get_cursor()
+            cursor = self.connection.cursor()
             
-            if self.use_sqlite:
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days)
+            start_date_str = self._convert_date_for_storage(start_date)
+            
+            if self.db_type == 'sqlite':
                 cursor.execute('''
                     SELECT date, 
-                           sod_data IS NOT NULL as has_sod,
-                           eod_data IS NOT NULL as has_eod,
-                           sod_timestamp,
-                           eod_timestamp
+                        sod_data,
+                        eod_data,
+                        sod_timestamp,
+                        eod_timestamp
                     FROM daily_entries 
                     WHERE date >= ?
                     ORDER BY date DESC
-                ''', (datetime.now().date() - timedelta(days=days),))
+                ''', (start_date_str,))
             else:
                 cursor.execute('''
                     SELECT date, 
-                           sod_data IS NOT NULL as has_sod,
-                           eod_data IS NOT NULL as has_eod,
-                           sod_timestamp,
-                           eod_timestamp
+                        sod_data IS NOT NULL as has_sod,
+                        eod_data IS NOT NULL as has_eod,
+                        sod_timestamp,
+                        eod_timestamp
                     FROM daily_entries 
                     WHERE date >= %s
                     ORDER BY date DESC
-                ''', (datetime.now().date() - timedelta(days=days),))
+                ''', (start_date_str,))
             
             results = cursor.fetchall()
             cursor.close()
-            return results
+            
+            # Convert results to consistent format
+            formatted_results = []
+            for result in results:
+                if self.db_type == 'sqlite':
+                    result_dict = dict(result)
+                    
+                    # Parse JSON data to check if it's actually present
+                    sod_data = self._parse_json_data(result_dict['sod_data'])
+                    eod_data = self._parse_json_data(result_dict['eod_data'])
+                    
+                    formatted_results.append({
+                        'date': self._convert_date_from_storage(result_dict['date']),
+                        'has_sod': bool(sod_data and len(sod_data) > 0),  # Check if data exists and not empty
+                        'has_eod': bool(eod_data and len(eod_data) > 0),  # Check if data exists and not empty
+                        'sod_timestamp': self._convert_datetime_from_storage(result_dict['sod_timestamp']),
+                        'eod_timestamp': self._convert_datetime_from_storage(result_dict['eod_timestamp'])
+                    })
+                else:
+                    formatted_results.append(dict(result))
+            
+            return formatted_results
         except Exception as e:
             print(f"Error getting recent entries: {e}")
             return []
