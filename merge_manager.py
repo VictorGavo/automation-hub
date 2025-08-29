@@ -116,22 +116,28 @@ class MergeManager:
     
     def branch_exists(self, branch_name):
         """Check if branch exists locally"""
-        branches = self.run_command("git branch", capture_output=True)
-        return f" {branch_name}" in branches or f"* {branch_name}" in branches
+        branches = self.run_command("git branch -a", capture_output=True)
+        # Check for local branch (with or without *)
+        local_exists = f" {branch_name}" in branches or f"* {branch_name}" in branches
+        # Also check for remote tracking branches
+        remote_exists = f"remotes/origin/{branch_name}" in branches
+        return local_exists or remote_exists
     
     def create_test_branch(self):
         """Create or switch to test branch"""
         self.log_and_print("Setting up test branch...", Colors.HEADER)
         
-        if self.branch_exists("test"):
-            self.log_and_print("Switching to existing test branch")
-            self.run_command("git checkout test")
-            # Reset test branch to main to ensure clean state
-            self.run_command("git reset --hard main")
-        else:
-            self.log_and_print("Creating new test branch from main")
-            self.run_command("git checkout main")
-            self.run_command("git checkout -b test")
+        # Always recreate test branch fresh from main to avoid conflicts
+        self.log_and_print("Creating fresh test branch from main")
+        self.run_command("git checkout main")
+        
+        # Delete existing test branch if it exists
+        existing_test = self.run_command("git branch | grep -w test", capture_output=True)
+        if existing_test.strip():
+            self.run_command("git branch -D test")
+        
+        # Create new test branch
+        self.run_command("git checkout -b test")
         
         return True
     
@@ -139,9 +145,23 @@ class MergeManager:
         """Merge feature branch into test branch"""
         self.log_and_print(f"Merging {feature_branch} into test branch...", Colors.HEADER)
         
+        # Check if branch exists (including remote branches)
         if not self.branch_exists(feature_branch):
             self.log_and_print(f"Feature branch '{feature_branch}' does not exist!", Colors.FAIL)
+            self.log_and_print("Available branches:", Colors.OKBLUE)
+            self.run_command("git branch -a")
             return False
+        
+        # Make sure we can access the feature branch - fetch if it's remote
+        branches_output = self.run_command("git branch -a", capture_output=True)
+        if f"remotes/origin/{feature_branch}" in branches_output and f" {feature_branch}" not in branches_output:
+            self.log_and_print(f"Checking out remote branch: {feature_branch}")
+            checkout_result = self.run_command(f"git checkout -b {feature_branch} origin/{feature_branch}")
+            if not checkout_result:
+                self.log_and_print("Failed to checkout remote branch", Colors.FAIL)
+                return False
+            # Switch back to test branch
+            self.run_command("git checkout test")
         
         # Merge feature branch
         result = self.run_command(f"git merge {feature_branch} --no-ff -m 'Test merge: {feature_branch}'")
