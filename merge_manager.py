@@ -83,8 +83,13 @@ class MergeManager:
                 )
                 return result.stdout.strip()
             else:
-                subprocess.run(command, shell=True, check=check, cwd=self.project_root)
-                return True
+                result = subprocess.run(
+                    command, 
+                    shell=True, 
+                    check=check, 
+                    cwd=self.project_root
+                )
+                return result.returncode == 0
         except subprocess.CalledProcessError as e:
             self.log_and_print(f"Command failed: {e}", Colors.FAIL)
             if capture_output and e.stdout:
@@ -115,13 +120,13 @@ class MergeManager:
         return self.run_command("git branch --show-current", capture_output=True)
     
     def branch_exists(self, branch_name):
-        """Check if branch exists locally"""
+        """Check if branch exists locally or remotely - simple and reliable"""
         branches = self.run_command("git branch -a", capture_output=True)
-        # Check for local branch (with or without *)
-        local_exists = f" {branch_name}" in branches or f"* {branch_name}" in branches
-        # Also check for remote tracking branches
-        remote_exists = f"remotes/origin/{branch_name}" in branches
-        return local_exists or remote_exists
+        if not branches:
+            return False
+        
+        # Simple substring search - debug shows this works
+        return branch_name in branches
     
     def create_test_branch(self):
         """Create or switch to test branch"""
@@ -154,7 +159,9 @@ class MergeManager:
         
         # Make sure we can access the feature branch - fetch if it's remote
         branches_output = self.run_command("git branch -a", capture_output=True)
-        if f"remotes/origin/{feature_branch}" in branches_output and f" {feature_branch}" not in branches_output:
+        self.log_and_print(f"Debug: Available branches: {branches_output}", Colors.OKCYAN)
+        
+        if f"remotes/origin/{feature_branch}" in branches_output and feature_branch not in branches_output:
             self.log_and_print(f"Checking out remote branch: {feature_branch}")
             checkout_result = self.run_command(f"git checkout -b {feature_branch} origin/{feature_branch}")
             if not checkout_result:
@@ -163,9 +170,28 @@ class MergeManager:
             # Switch back to test branch
             self.run_command("git checkout test")
         
-        # Merge feature branch
-        result = self.run_command(f"git merge {feature_branch} --no-ff -m 'Test merge: {feature_branch}'")
-        if not result:
+        # Debug: Check current branch and working directory
+        current_branch = self.run_command("git branch --show-current", capture_output=True)
+        self.log_and_print(f"Debug: Current branch: {current_branch}", Colors.OKCYAN)
+        
+        # Check if target branch exists from current location
+        branch_check = self.run_command(f"git show-ref --verify --quiet refs/heads/{feature_branch}")
+        self.log_and_print(f"Debug: Branch ref check result: {branch_check}", Colors.OKCYAN)
+        
+        # Merge feature branch using array format to avoid shell parsing issues
+        merge_cmd = ["git", "merge", feature_branch, "--no-ff", "-m", f"Test merge: {feature_branch}"]
+        try:
+            result = subprocess.run(
+                merge_cmd,
+                cwd=self.project_root,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            self.log_and_print(f"Git merge output: {result.stdout}", Colors.OKCYAN)
+        except subprocess.CalledProcessError as e:
+            self.log_and_print(f"Merge failed with error: {e}", Colors.FAIL)
+            self.log_and_print(f"Error output: {e.stderr}", Colors.FAIL)
             self.log_and_print("Merge failed! Please resolve conflicts manually.", Colors.FAIL)
             return False
         
