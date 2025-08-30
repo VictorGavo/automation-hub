@@ -237,36 +237,45 @@ class MergeManager:
         ]
         
         failed_tests = []
+        failed_critical_tests = []
+        failed_non_critical_tests = []
         critical_failure = False
-        
+
         for phase in test_phases:
             self.log_and_print(f"\n--- Running {phase['name']} ---", Colors.BOLD)
-            
+
             # Run the test
             result = self.run_command(phase['command'])
-            
+
             if result:
                 self.log_and_print(f"✅ {phase['name']} passed", Colors.OKGREEN)
             else:
                 self.log_and_print(f"❌ {phase['name']} failed", Colors.FAIL)
                 failed_tests.append(phase['name'])
                 if phase['critical']:
+                    failed_critical_tests.append(phase['name'])
                     critical_failure = True
-        
+                else:
+                    failed_non_critical_tests.append(phase['name'])
+
         # Test summary
         self.log_and_print(f"\n--- Test Suite Summary ---", Colors.BOLD)
         if failed_tests:
             self.log_and_print(f"Failed tests: {', '.join(failed_tests)}", Colors.WARNING)
-        
+        if failed_critical_tests:
+            self.log_and_print(f"Critical test failures: {', '.join(failed_critical_tests)}", Colors.FAIL)
+        if failed_non_critical_tests:
+            self.log_and_print(f"Non-critical test failures: {', '.join(failed_non_critical_tests)}", Colors.WARNING)
+
         if critical_failure:
             self.log_and_print("Critical tests failed! Merge blocked.", Colors.FAIL)
             return False
-        elif failed_tests:
+        elif failed_non_critical_tests:
             self.log_and_print("Some non-critical tests failed, but merge can proceed.", Colors.WARNING)
             response = input("Continue with merge? [y/N]: ").lower().strip()
             if response != 'y':
                 return False
-        
+
         self.log_and_print("All critical tests passed!", Colors.OKGREEN)
         return True
     
