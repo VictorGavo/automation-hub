@@ -277,11 +277,20 @@ class MergeManager:
         # Switch to main
         self.run_command("git checkout main")
         
-        # Merge test branch
-        merge_message = f"Merge feature: {feature_branch} (tested)"
-        result = self.run_command(f"git merge test --no-ff -m '{merge_message}'")
-        
-        if not result:
+        # Merge to main using array format to avoid shell parsing issues
+        merge_cmd = ["git", "merge", "test", "--no-ff", "-m", f"Merge feature {feature_branch} (tested)"]
+        try:
+            result = subprocess.run(
+                merge_cmd,
+                cwd=self.project_root,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            self.log_and_print(f"Git merge output: {result.stdout}", Colors.OKCYAN)
+        except subprocess.CalledProcessError as e:
+            self.log_and_print(f"Merge to main failed with error: {e}", Colors.FAIL)
+            self.log_and_print(f"Error output: {e.stderr}", Colors.FAIL)
             self.log_and_print("Merge to main failed!", Colors.FAIL)
             return False
         
