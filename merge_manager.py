@@ -137,7 +137,7 @@ class MergeManager:
         self.run_command("git checkout main")
         
         # Delete existing test branch if it exists
-        existing_test = self.run_command("git branch | grep -w test", capture_output=True)
+        existing_test = self.run_command("git branch | grep -w test", check=False, capture_output=True)
         if existing_test.strip():
             self.run_command("git branch -D test")
         
