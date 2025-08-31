@@ -65,12 +65,17 @@ class Config:
     @classmethod
     def get_db_url(cls):
         """Get the database URL based on testing flag"""
+        db_type = 'Test' if cls.TESTING else 'Production'
+        print(f"[Config] Using {db_type} database: {cls.DB_NAME}")
+        import logging
+        logging.info(f"[Config] Using {db_type} database: {cls.DB_NAME}")
         return f"postgresql://{cls.DB_USER}:{cls.DB_PASSWORD}@{cls.DB_HOST}:{cls.DB_PORT}/{cls.DB_NAME}"
-    
+
     @classmethod
     def print_config(cls):
         """Print current configuration (useful for debugging)"""
-        print(f"Database: {cls.DB_NAME}")
+        db_type = 'Test' if cls.TESTING else 'Production'
+        print(f"[Config] Database: {cls.DB_NAME} ({db_type})")
         print(f"Testing Mode: {cls.TESTING}")
         print(f"Debug Mode: {cls.DEBUG}")
         print(f"Timezone: {cls.TIMEZONE}")
@@ -78,6 +83,10 @@ class Config:
     @staticmethod
     def get_db_connection_string():
         """Get PostgreSQL connection string."""
+        db_type = 'Test' if Config.TESTING else 'Production'
+        print(f"[Config] Using {db_type} database: {Config.DB_NAME}")
+        import logging
+        logging.info(f"[Config] Using {db_type} database: {Config.DB_NAME}")
         return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
     
     @staticmethod

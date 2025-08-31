@@ -31,7 +31,7 @@ class NotionManager:
     def get_daily_capture_content(self) -> Dict[str, Any]:
         """
         Retrieve and parse content from the Daily Capture page.
-        
+        Adds detailed logging for API response, block count, and parsed structure.
         Returns:
             Dictionary with parsed content organized by headers
         """
@@ -39,27 +39,35 @@ class NotionManager:
             if not self.api_token or not self.daily_capture_page_id:
                 logger.error("Notion API not properly configured")
                 return {'success': False, 'error': 'API not configured'}
-            
+
             # Get page blocks
             url = f"{self.base_url}/blocks/{self.daily_capture_page_id}/children"
+            logger.info(f"Requesting Notion blocks from: {url}")
             response = requests.get(url, headers=self.headers)
-            
+            logger.info(f"Notion API response status: {response.status_code}")
+            logger.debug(f"Notion API response content length: {len(response.content) if response.content else 0}")
+
             if response.status_code != 200:
                 logger.error(f"Failed to fetch Notion page: {response.status_code} - {response.text}")
                 return {'success': False, 'error': f'API request failed: {response.status_code}'}
-            
+
             data = response.json()
             blocks = data.get('results', [])
-            
+            logger.info(f"Retrieved {len(blocks)} blocks from Notion API.")
+            logger.debug(f"Raw block data: {json.dumps(blocks)[:500]}...")
+
             # Parse blocks into structured content
             parsed_content = self._parse_blocks(blocks)
-            
+            logger.info(f"Parsed Notion content structure: {list(parsed_content.keys())}")
+            for header, items in parsed_content.items():
+                logger.debug(f"Header '{header}': {len(items)} items")
+
             return {
                 'success': True,
                 'content': parsed_content,
                 'block_count': len(blocks)
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting daily capture content: {e}")
             return {'success': False, 'error': str(e)}

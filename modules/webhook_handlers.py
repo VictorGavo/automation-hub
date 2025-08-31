@@ -10,11 +10,16 @@ class WebhookHandlers:
     """Centralized webhook handling with clean separation of concerns"""
     
     def __init__(self):
-        self.daily_books = DailyBooksManager()
-        self.daily_capture = DailyCaptureManager()
+        from database import DatabaseManager
+        self.db_manager = DatabaseManager()
+        self.daily_books = DailyBooksManager(self.db_manager)
+        self.daily_capture = DailyCaptureManager(self.db_manager)
     
     @handle_exceptions
     def handle_sod_webhook(self):
+        # ...existing code...
+        # After SOD processing and current_date assignment
+    # ...existing code...
         """Handle SOD (Start of Day) form submissions"""
         # Validate request
         form_data, error_response, status_code = CoreUtils.validate_json_request()
@@ -23,19 +28,23 @@ class WebhookHandlers:
         
         # Get current date
         current_date = CoreUtils.get_test_date_or_today()
-        
+        logger.info(f"[SOD-STORAGE] handle_sod_webhook: current_date={current_date} (type={type(current_date)})")
+        logger.info(f"[SOD-STORAGE] handle_sod_webhook: form_data keys={list(form_data.keys()) if form_data else 'None'}")
+
         # Process SOD form data
         books_result = self.daily_books.process_sod(form_data, current_date)
-        
+        logger.info(f"[SOD-STORAGE] handle_sod_webhook: books_result.is_valid={books_result.is_valid}, message={books_result.message}, data_keys={list(books_result.data.keys()) if books_result.data else 'None'}")
+        logger.info(f"[SOD-STORAGE] handle_sod_webhook: SOD storage attempted for date={current_date}, success={books_result.is_valid}")
+
         if not books_result.is_valid:
             return CoreUtils.create_error_response(books_result.message)
-        
+
         # Get updated daily entry for capture processing
         entry_result = self.daily_books.get_daily_entry(current_date)
         if not entry_result.is_valid:
             logger.error(f"Failed to retrieve daily entry after SOD processing: {entry_result.message}")
             return CoreUtils.create_error_response("SOD stored but failed to retrieve entry for processing")
-        
+
         daily_entry = entry_result.data
         
         # Process capture workflow (Notion update and markdown generation)
@@ -63,12 +72,13 @@ class WebhookHandlers:
         if markdown_result and not markdown_result.is_valid:
             response_data.setdefault('warnings', []).append(f"Template generation failed: {markdown_result.message}")
         
+        print(f"🔍 DEBUG - SOD webhook completed for date: {current_date}")
         return CoreUtils.create_success_response(
             'SOD data processed successfully',
             current_date,
             **response_data
         )
-    
+
     @handle_exceptions
     def handle_eod_webhook(self):
         """Handle EOD (End of Day) form submissions"""
@@ -96,7 +106,7 @@ class WebhookHandlers:
         
         # Process final workflow (captures and final markdown)
         capture_result = self.daily_capture.process_eod_workflow(daily_entry)
-        
+
         # Build response
         response_data = {
             **books_result.data,
@@ -105,7 +115,7 @@ class WebhookHandlers:
             'notion_captures_processed': False,
             'captures_imported': 0
         }
-        
+
         # Add Notion capture details if available
         if capture_result and capture_result.data:
             capture_data = capture_result.data
@@ -116,14 +126,22 @@ class WebhookHandlers:
                     'captures_imported': notion_captures.get('sections_imported', 0),
                     'blocks_cleared': notion_captures.get('blocks_cleared', 0)
                 })
-        
+                # Log Notion data storage
+                logger.info(f"Storing Notion capture data in database: processed={notion_captures.get('captures_processed', False)}, sections={notion_captures.get('sections_imported', 0)}, blocks_cleared={notion_captures.get('blocks_cleared', 0)}")
+                logger.debug(f"Notion capture content stored: {notion_captures.get('content', '')[:500]}")
+            else:
+                logger.warning("No Notion capture data found to store in database.")
+        else:
+            logger.warning("No capture_result data found for Notion storage.")
+
         # Add any warnings
         if books_result.data and books_result.data.get('sod_warning'):
             response_data['warnings'] = [books_result.data['sod_warning']]
-        
+
         if capture_result and not capture_result.is_valid:
+            logger.error(f"Notion capture storage failure: {capture_result.message}")
             response_data.setdefault('warnings', []).append(f"Capture processing failed: {capture_result.message}")
-        
+
         return CoreUtils.create_success_response(
             'EOD data processed successfully',
             current_date,
@@ -134,8 +152,10 @@ class APIHandlers:
     """Centralized API endpoint handling"""
     
     def __init__(self):
-        self.daily_books = DailyBooksManager()
-        self.daily_capture = DailyCaptureManager()
+        from database import DatabaseManager
+        self.db_manager = DatabaseManager()
+        self.daily_books = DailyBooksManager(self.db_manager)
+        self.daily_capture = DailyCaptureManager(self.db_manager)
     
     @handle_exceptions
     def get_daily_entry(self, date_str):
