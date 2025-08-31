@@ -7,11 +7,11 @@ from markdown_generator import MarkdownGenerator
 class NotionIntegrationManager:
     """Handles Notion API integration and template management"""
     
-    def __init__(self):
+    def __init__(self, db_manager=None):
         self.config = Config()
+        self.db_manager = db_manager
         self.notion_manager = None
         self.goal_manager = None
-        
         # Initialize managers if enabled
         if self.config.NOTION_ENABLED:
             try:
@@ -21,7 +21,6 @@ class NotionIntegrationManager:
             except Exception as e:
                 logger.error(f"Failed to initialize Notion manager: {e}")
                 self.notion_manager = None
-        
         if self.config.OBSIDIAN_GOALS_ENABLED:
             try:
                 from obsidian_goal_manager import ObsidianGoalManager
@@ -139,6 +138,10 @@ class NotionIntegrationManager:
                         logger.error(f"Template rebuild failed: {rebuild_result['error']}")
                 else:
                     logger.warning("No SOD data available for template rebuild")
+                    # DEBUG: Check what's actually in daily_entry
+                    print(f"🔍 DEBUG - daily_entry keys: {list(daily_entry.keys())}")
+                    print(f"🔍 DEBUG - sod_data type: {type(daily_entry.get('sod_data'))}")
+                    print(f"🔍 DEBUG - sod_data value: {daily_entry.get('sod_data')}")
 
             else:
                 if capture_result['success']:
@@ -159,10 +162,11 @@ class NotionIntegrationManager:
 class MarkdownManager:
     """Handles markdown template generation and file management"""
     
-    def __init__(self):
+    def __init__(self, db_manager=None):
         self.config = Config()
+        self.db_manager = db_manager
         self.markdown_generator = MarkdownGenerator()
-        self.notion_integration = NotionIntegrationManager()
+        self.notion_integration = NotionIntegrationManager(db_manager=db_manager) if db_manager else NotionIntegrationManager()
     
     def generate_final_template(self, daily_entry):
         """Generate final markdown template for daily entry"""
@@ -205,10 +209,13 @@ class MarkdownManager:
             # Process Notion captures first
             capture_result = self.notion_integration.process_daily_captures(daily_entry)
             
-            print(f"📝 Notion capture result: {capture_result.is_valid}")
-            if capture_result.data:
+            print(f"📝 Notion capture result: {getattr(capture_result, 'is_valid', False)}")
+            content = ''
+            if capture_result and getattr(capture_result, 'data', None):
                 print(f"   Captures processed: {capture_result.data.get('captures_processed', False)}")
-                print(f"   Content length: {len(capture_result.data.get('content', ''))}")
+                content = capture_result.data.get('content', '')
+            content_length = len(content) if content is not None else 0
+            print(f"   Content length: {content_length}")
             
             # Generate the base markdown template
             markdown_path = self.markdown_generator.generate_daily_template(daily_entry)
@@ -284,9 +291,10 @@ class MarkdownManager:
 class DailyCaptureManager:
     """Main manager class for daily capture processing"""
     
-    def __init__(self):
-        self.notion_integration = NotionIntegrationManager()
-        self.markdown_manager = MarkdownManager()
+    def __init__(self, db_manager=None):
+        self.db_manager = db_manager
+        self.notion_integration = NotionIntegrationManager(db_manager=db_manager) if db_manager else NotionIntegrationManager()
+        self.markdown_manager = MarkdownManager(db_manager=db_manager) if db_manager else MarkdownManager()
     
     def process_sod_workflow(self, sod_data, daily_entry):
         """Process SOD workflow: update Notion template and generate initial markdown"""

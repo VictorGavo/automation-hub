@@ -10,11 +10,16 @@ class WebhookHandlers:
     """Centralized webhook handling with clean separation of concerns"""
     
     def __init__(self):
-        self.daily_books = DailyBooksManager()
-        self.daily_capture = DailyCaptureManager()
+        from database import DatabaseManager
+        self.db_manager = DatabaseManager()
+        self.daily_books = DailyBooksManager(self.db_manager)
+        self.daily_capture = DailyCaptureManager(self.db_manager)
     
     @handle_exceptions
     def handle_sod_webhook(self):
+        # ...existing code...
+        # After SOD processing and current_date assignment
+    # ...existing code...
         """Handle SOD (Start of Day) form submissions"""
         # Validate request
         form_data, error_response, status_code = CoreUtils.validate_json_request()
@@ -29,6 +34,7 @@ class WebhookHandlers:
         # Process SOD form data
         books_result = self.daily_books.process_sod(form_data, current_date)
         logger.info(f"[SOD-STORAGE] handle_sod_webhook: books_result.is_valid={books_result.is_valid}, message={books_result.message}, data_keys={list(books_result.data.keys()) if books_result.data else 'None'}")
+        logger.info(f"[SOD-STORAGE] handle_sod_webhook: SOD storage attempted for date={current_date}, success={books_result.is_valid}")
 
         if not books_result.is_valid:
             return CoreUtils.create_error_response(books_result.message)
@@ -66,12 +72,13 @@ class WebhookHandlers:
         if markdown_result and not markdown_result.is_valid:
             response_data.setdefault('warnings', []).append(f"Template generation failed: {markdown_result.message}")
         
+        print(f"🔍 DEBUG - SOD webhook completed for date: {current_date}")
         return CoreUtils.create_success_response(
             'SOD data processed successfully',
             current_date,
             **response_data
         )
-    
+
     @handle_exceptions
     def handle_eod_webhook(self):
         """Handle EOD (End of Day) form submissions"""
@@ -145,8 +152,10 @@ class APIHandlers:
     """Centralized API endpoint handling"""
     
     def __init__(self):
-        self.daily_books = DailyBooksManager()
-        self.daily_capture = DailyCaptureManager()
+        from database import DatabaseManager
+        self.db_manager = DatabaseManager()
+        self.daily_books = DailyBooksManager(self.db_manager)
+        self.daily_capture = DailyCaptureManager(self.db_manager)
     
     @handle_exceptions
     def get_daily_entry(self, date_str):

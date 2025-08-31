@@ -13,6 +13,8 @@ class DatabaseManager:
         self._log_database_selection()
         self._safeguard_test_vs_prod()
         self.connect()
+        if self.connection:
+            print(f"[DB] Connection opened. ID: {id(self.connection)}")
 
     def _log_database_selection(self):
         db_name = self.config.DB_NAME
@@ -39,10 +41,13 @@ class DatabaseManager:
                 getattr(self.config, 'USE_SQLITE', False) or
                 self.config.TESTING):
                 # SQLite
-                self.db_type = 'sqlite'
                 self.connection = sqlite3.connect(f'{self.config.DB_NAME}.db', check_same_thread=False)
                 self.connection.row_factory = sqlite3.Row  # Enable row access by column name
+                self.connection.execute('PRAGMA journal_mode=WAL;')
+                self.connection.commit()
+                self.db_type = 'sqlite'
                 print(f"Connected to SQLite database: {self.config.DB_NAME}")
+                print(f"[DB] SQLite WAL mode enabled for connection ID: {id(self.connection)}")
             else:
                 # PostgreSQL
                 self.db_type = 'postgresql'
@@ -191,25 +196,38 @@ class DatabaseManager:
             json_data = self._prepare_json_data(sod_data)
             timestamp_str = self._convert_datetime_for_storage(datetime.now())
             logging.info(f"[SOD-STORAGE] upsert_sod_data: date={date_obj} (type={type(date_obj)}), date_str={date_str}")
-            logging.info(f"[SOD-STORAGE] upsert_sod_data: sod_data keys={list(sod_data.keys()) if sod_data else 'None'}")
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: sod_data={sod_data}")
             operation = 'INSERT/UPDATE (PostgreSQL)' if self.db_type == 'postgresql' else 'INSERT OR REPLACE (SQLite)'
             logging.info(f"[SOD-STORAGE] upsert_sod_data: operation={operation}")
             if self.db_type == 'postgresql':
-                cursor.execute('''
+                sql = '''
                     INSERT INTO daily_entries (date, sod_data, sod_timestamp)
                     VALUES (%s, %s::jsonb, %s)
                     ON CONFLICT (date) 
                     DO UPDATE SET 
                         sod_data = EXCLUDED.sod_data,
                         sod_timestamp = EXCLUDED.sod_timestamp
-                ''', (date_str, json_data, timestamp_str))
+                '''
+                print(f"[DEBUG] About to store in PostgreSQL: date={date_str}, sod_data={json_data}, sod_timestamp={timestamp_str}")
+                cursor.execute(sql, (date_str, json_data, timestamp_str))
             else:
-                cursor.execute('''
+                sql = '''
                     INSERT OR REPLACE INTO daily_entries 
                     (date, sod_data, sod_timestamp, updated_at)
                     VALUES (?, ?, ?, ?)
-                ''', (date_str, json_data, timestamp_str, timestamp_str))
-            self.connection.commit()
+                '''
+                print(f"[DEBUG] About to store in SQLite: date={date_str}, sod_data={json_data}, sod_timestamp={timestamp_str}, updated_at={timestamp_str}")
+                try:
+                    cursor.execute(sql, (date_str, json_data, timestamp_str, timestamp_str))
+                    print(f"[DEBUG] Rows affected: {cursor.rowcount}")
+                    self.connection.commit()
+                    print(f"[DEBUG] Transaction committed successfully")
+                except Exception as e:
+                    print(f"[ERROR] SQLite execute/commit failed: {e}")
+                    self.connection.rollback()
+                    print(f"[DEBUG] Transaction rolled back due to error")
+                    cursor.close()
+                    return False
             cursor.close()
             logging.info(f"[SOD-STORAGE] upsert_sod_data: SUCCESS for date={date_obj}")
             print(f"✅ SOD data saved for {date_obj}")
@@ -218,17 +236,16 @@ class DatabaseManager:
             logging.error(f"[SOD-STORAGE] upsert_sod_data: FAILURE for date={date_obj}, error={e}")
             print(f"Error upserting SOD data: {e}")
             self.connection.rollback()
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: rollback performed for date={date_obj}")
             return False
     
     def upsert_eod_data(self, date_obj, eod_data):
         """Insert or update EOD data for a given date"""
         try:
             cursor = self.connection.cursor()
-            
             date_str = self._convert_date_for_storage(date_obj)
             json_data = self._prepare_json_data(eod_data)
             timestamp_str = self._convert_datetime_for_storage(datetime.now())
-            
             if self.db_type == 'postgresql':
                 cursor.execute('''
                     INSERT INTO daily_entries (date, eod_data, eod_timestamp)
@@ -240,11 +257,13 @@ class DatabaseManager:
                 ''', (date_str, json_data, timestamp_str))
             else:
                 cursor.execute('''
-                    INSERT OR REPLACE INTO daily_entries 
-                    (date, eod_data, eod_timestamp, updated_at)
+                    INSERT INTO daily_entries (date, eod_data, eod_timestamp, updated_at)
                     VALUES (?, ?, ?, ?)
+                    ON CONFLICT(date) DO UPDATE SET 
+                        eod_data = excluded.eod_data,
+                        eod_timestamp = excluded.eod_timestamp,
+                        updated_at = excluded.updated_at
                 ''', (date_str, json_data, timestamp_str, timestamp_str))
-            
             self.connection.commit()
             cursor.close()
             print(f"✅ EOD data saved for {date_obj}")
@@ -260,28 +279,40 @@ class DatabaseManager:
         try:
             date_str = self._convert_date_for_storage(date_obj)
             logging.info(f"[SOD-RETRIEVAL] get_daily_entry: date_obj={date_obj} (type={type(date_obj)}), date_str={date_str}")
+            print(f"[RETRIEVAL-DEBUG] Querying for date: {date_str}")
             if self.db_type == 'postgresql':
                 cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                sql_query = 'SELECT * FROM daily_entries WHERE date = %s'
+                print(f"[RETRIEVAL-DEBUG] SQL: {sql_query}")
+                cursor.execute(sql_query, (date_str,))
             else:
                 cursor = self.connection.cursor()
-            if self.db_type == 'sqlite':
-                cursor.execute('SELECT * FROM daily_entries WHERE date = ?', (date_str,))
-            else:
-                cursor.execute('SELECT * FROM daily_entries WHERE date = %s', (date_str,))
-            result = cursor.fetchone()
+                sql_query = 'SELECT * FROM daily_entries WHERE date = ?'
+                print(f"[RETRIEVAL-DEBUG] SQL: {sql_query}")
+                cursor.execute(sql_query, (date_str,))
+            row = cursor.fetchone()
+            print(f"[RETRIEVAL-DEBUG] Raw row data: {dict(row) if row else 'No row found'}")
+            if row and 'sod_data' in row.keys():
+                print(f"[RETRIEVAL-DEBUG] Raw sod_data: {repr(row['sod_data'])}")
             cursor.close()
-            found = bool(result)
+            found = bool(row)
             logging.info(f"[SOD-RETRIEVAL] get_daily_entry: found_row={found}")
-            if result:
+            if row:
                 if self.db_type == 'sqlite':
-                    result_dict = dict(result)
-                    sod_data = self._parse_json_data(result_dict['sod_data'])
+                    result_dict = dict(row)
+                    try:
+                        sod_data = self._parse_json_data(result_dict['sod_data'])
+                    except Exception as e:
+                        print(f"[RETRIEVAL-DEBUG] JSON parsing error for sod_data: {e}")
+                        sod_data = None
                 else:
-                    sod_data = result['sod_data']
+                    sod_data = row['sod_data']
                 is_null = sod_data is None
                 logging.info(f"[SOD-RETRIEVAL] get_daily_entry: sod_data_null={is_null}")
                 if not is_null and isinstance(sod_data, dict):
                     logging.info(f"[SOD-RETRIEVAL] get_daily_entry: sod_data_keys={list(sod_data.keys())}")
+                else:
+                    logging.info(f"[SOD-RETRIEVAL] get_daily_entry: sod_data_type={type(sod_data)}, sod_data_value={sod_data}")
                 # ...existing code...
                 if self.db_type == 'sqlite':
                     return {
@@ -296,14 +327,14 @@ class DatabaseManager:
                     }
                 else:
                     return {
-                        'id': result['id'],
-                        'date': result['date'],
+                        'id': row['id'],
+                        'date': row['date'],
                         'sod_data': sod_data,
-                        'sod_timestamp': result['sod_timestamp'],
-                        'eod_data': result['eod_data'],
-                        'eod_timestamp': result['eod_timestamp'],
-                        'created_at': result['created_at'],
-                        'updated_at': result['updated_at']
+                        'sod_timestamp': row['sod_timestamp'],
+                        'eod_data': row['eod_data'],
+                        'eod_timestamp': row['eod_timestamp'],
+                        'created_at': row['created_at'],
+                        'updated_at': row['updated_at']
                     }
             return None
         except Exception as e:
@@ -404,5 +435,6 @@ class DatabaseManager:
     def close(self):
         """Close database connection"""
         if self.connection:
+            print(f"[DB] Closing connection. ID: {id(self.connection)}")
             self.connection.close()
             print("Database connection closed")
