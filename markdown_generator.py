@@ -432,72 +432,33 @@ class MarkdownGenerator:
         # Today's Highlight with enhanced processing
         content.append("```ad-tip")
         content.append("title:Today's Highlight")
-        
         if daily_entry['sod_data']:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
             highlight = normalized_data.get('highlight', '')
-            
             if highlight:
                 content.append(f"{highlight}")
             else:
                 content.append("(No highlight provided in SOD form)")
         else:
             content.append("(SOD form not completed)")
-        
         content.append("```")
         content.append("")
-        
+
         # Today's Big 3 with enhanced processing
         content.append("**Today's Big 3**")
         content.append("")
-        
         if daily_entry['sod_data']:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
             big3_text = normalized_data.get('big3', '')
             big3_items = processor.process_big3(big3_text)
-            
-            # Add validation logging
             if not big3_text:
                 logger.warning("Big 3 field empty or missing from SOD data")
-            
-            for item in big3_items:
-                content.append(item)
-        # Today's Highlight
-        content.append("```ad-tip")
-        content.append("title:Today's Highlight")
-        
-        if daily_entry['sod_data']:
-            normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
-            highlight = normalized_data.get('highlight', '')
-            
-            if highlight:
-                content.append(f"{highlight}")
-            else:
-                content.append("(No highlight provided in SOD form)")
-        else:
-            content.append("(SOD form not completed)")
-        
-        content.append("```")
-        content.append("")
-        
-        # Today's Big 3 with enhanced processing
-        content.append("**Today's Big 3**")
-        content.append("")
-        
-        if daily_entry['sod_data']:
-            normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
-            big3_text = normalized_data.get('big3', '')
-            big3_items = processor.process_big3(big3_text)
-            
-            # Add validation logging
-            if not big3_text:
-                logger.warning("Big 3 field empty or missing from SOD data")
-            
             for item in big3_items:
                 content.append(item)
         else:
             content.append("1. (SOD form not completed)")
             content.append("2. ")
+            content.append("3. ")
             content.append("3. ")
             logger.warning("No SOD data available for Big 3 processing")
         
@@ -863,75 +824,74 @@ class MarkdownGenerator:
         
     def _insert_notion_captures(self, content_lines: List[str], notion_content: str) -> List[str]:
         """
-        Insert Notion capture content under the ### Captured Notes section.
-        
-        Args:
-            content_lines: Existing markdown content as list of lines
-            notion_content: Formatted notion content to insert
-            
-        Returns:
-            Updated content lines with notion content inserted
+        Insert Notion capture content under the '#### From Daily Capture' section, or after '### Captured Notes' if not present.
+        Adds error handling and logging for insertion failures and ensures markdown compatibility.
         """
-        if not notion_content.strip():
-            # print("DEBUG: notion_content is empty, returning original lines")
+        if not notion_content or not notion_content.strip():
+            logger.warning("Notion content is empty, skipping insertion.")
             return content_lines
-        
-        # print(f"DEBUG: Inserting notion content ({len(notion_content)} chars)")
-        # print(f"DEBUG: notion_content preview: {notion_content[:100]}...")
-    
 
-        # Find the ### Captured Notes section
+        # Find the '#### From Daily Capture' section first
+        from_daily_capture_index = None
+        for i, line in enumerate(content_lines):
+            if line.strip() == "#### From Daily Capture":
+                from_daily_capture_index = i
+                break
+
+        if from_daily_capture_index is not None:
+            # Insert after this header, replacing any previous content until next section or end
+            # Find next section header (### or ##) or end of file
+            next_section_index = None
+            for j in range(from_daily_capture_index + 1, len(content_lines)):
+                if content_lines[j].strip().startswith("###") or content_lines[j].strip().startswith("##"):
+                    next_section_index = j
+                    break
+            if next_section_index is None:
+                next_section_index = len(content_lines)
+            # Replace content between header and next section
+            updated_lines = (
+                content_lines[:from_daily_capture_index + 1] +
+                notion_content.split('\n') +
+                [''] +
+                content_lines[next_section_index:]
+            )
+            logger.info(f"Inserted Notion captures under '#### From Daily Capture' at line {from_daily_capture_index}.")
+            return updated_lines
+
+        # If not found, fallback to '### Captured Notes' section
         capture_notes_index = None
         for i, line in enumerate(content_lines):
             if line.strip() == "### Captured Notes":
                 capture_notes_index = i
-                # print(f"DEBUG: Found '### Captured Notes' at line {i}")
                 break
-        
-        if capture_notes_index is None:
-            # print("DEBUG: Could not find ### Captured Notes section")
-            logger.warning("Could not find ### Captured Notes section")
-            for i, line in enumerate(content_lines):
-                    if line.startswith("###"):
-                        # print(f"DEBUG: Found section at line {i}: {line}")
-                        return content_lines
-        
-        # Find the end of the dataview block (look for next ### or ##)
-        insert_index = None
-        for i in range(capture_notes_index + 1, len(content_lines)):
-            line = content_lines[i].strip()
-            if line.startswith("```") and i > capture_notes_index + 1:
-                # Found end of dataview block, insert after it
-                insert_index = i + 1
-                # print(f"DEBUG: Found end of dataview block at line {i}, will insert at {insert_index}")
-                break
-            elif line.startswith("###") or line.startswith("##"):
-                # Found next section, insert before it
-                insert_index = i
-                # print(f"DEBUG: Found next section at line {i}, will insert before it")
-                break
-        
-        # If no insertion point found, append to end
-        if insert_index is None:
-            insert_index = len(content_lines)
-            # print(f"DEBUG: No insertion point found, appending at end (line {insert_index})")
-        
-        # Insert the notion content
-        notion_lines = notion_content.split('\n')
-        # print(f"DEBUG: Splitting notion content into {len(notion_lines)} lines")
 
-        
-        # Add a separator and the content
+        if capture_notes_index is not None:
+            # Find end of dataview block (look for closing ```)
+            dataview_end_index = None
+            for j in range(capture_notes_index + 1, len(content_lines)):
+                if content_lines[j].strip() == "```":
+                    dataview_end_index = j
+                    break
+            if dataview_end_index is None:
+                dataview_end_index = capture_notes_index + 1
+                logger.warning("Could not find end of dataview block after '### Captured Notes'. Inserting after header.")
+            insert_index = dataview_end_index + 1
+            updated_lines = (
+                content_lines[:insert_index] +
+                ['', '#### From Daily Capture'] +
+                notion_content.split('\n') +
+                [''] +
+                content_lines[insert_index:]
+            )
+            logger.info(f"Inserted Notion captures after '### Captured Notes' at line {insert_index}.")
+            return updated_lines
+
+        # If neither section found, append to end
+        logger.error("Could not find '#### From Daily Capture' or '### Captured Notes' section. Appending Notion captures to end of file.")
         updated_lines = (
-            content_lines[:insert_index] + 
-            ['', '#### From Daily Capture'] + 
-            notion_lines + 
-            [''] + 
-            content_lines[insert_index:]
+            content_lines +
+            ['', '#### From Daily Capture'] +
+            notion_content.split('\n') +
+            ['']
         )
-
-        # print(f"DEBUG: Original content had {len(content_lines)} lines")
-        # print(f"DEBUG: Updated content has {len(updated_lines)} lines")
-        # print(f"DEBUG: Added {len(notion_lines) + 3} lines (content + separator + spacing)")
-            
         return updated_lines

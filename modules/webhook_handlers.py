@@ -96,7 +96,7 @@ class WebhookHandlers:
         
         # Process final workflow (captures and final markdown)
         capture_result = self.daily_capture.process_eod_workflow(daily_entry)
-        
+
         # Build response
         response_data = {
             **books_result.data,
@@ -105,7 +105,7 @@ class WebhookHandlers:
             'notion_captures_processed': False,
             'captures_imported': 0
         }
-        
+
         # Add Notion capture details if available
         if capture_result and capture_result.data:
             capture_data = capture_result.data
@@ -116,14 +116,22 @@ class WebhookHandlers:
                     'captures_imported': notion_captures.get('sections_imported', 0),
                     'blocks_cleared': notion_captures.get('blocks_cleared', 0)
                 })
-        
+                # Log Notion data storage
+                logger.info(f"Storing Notion capture data in database: processed={notion_captures.get('captures_processed', False)}, sections={notion_captures.get('sections_imported', 0)}, blocks_cleared={notion_captures.get('blocks_cleared', 0)}")
+                logger.debug(f"Notion capture content stored: {notion_captures.get('content', '')[:500]}")
+            else:
+                logger.warning("No Notion capture data found to store in database.")
+        else:
+            logger.warning("No capture_result data found for Notion storage.")
+
         # Add any warnings
         if books_result.data and books_result.data.get('sod_warning'):
             response_data['warnings'] = [books_result.data['sod_warning']]
-        
+
         if capture_result and not capture_result.is_valid:
+            logger.error(f"Notion capture storage failure: {capture_result.message}")
             response_data.setdefault('warnings', []).append(f"Capture processing failed: {capture_result.message}")
-        
+
         return CoreUtils.create_success_response(
             'EOD data processed successfully',
             current_date,

@@ -10,7 +10,24 @@ class DatabaseManager:
         self.config = Config()
         self.connection = None
         self.db_type = None
+        self._log_database_selection()
+        self._safeguard_test_vs_prod()
         self.connect()
+
+    def _log_database_selection(self):
+        db_name = self.config.DB_NAME
+        testing = self.config.TESTING
+        db_type = 'Test' if testing else 'Production'
+        print(f"[DatabaseManager] Using {db_type} database: {db_name}")
+        import logging
+        logging.info(f"[DatabaseManager] Using {db_type} database: {db_name}")
+
+    def _safeguard_test_vs_prod(self):
+        # Prevent accidental test operations on production DB
+        if self.config.TESTING and self.config.DB_NAME == 'automation_hub':
+            raise RuntimeError("[DatabaseManager] TESTING mode is enabled but production database is selected! Aborting to prevent data loss.")
+        if not self.config.TESTING and self.config.DB_NAME == 'automation_hub_test':
+            raise RuntimeError("[DatabaseManager] Production mode is enabled but test database is selected! Aborting to prevent data corruption.")
     
     def connect(self):
         """Connect to PostgreSQL or SQLite database based on configuration"""

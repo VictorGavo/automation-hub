@@ -12,6 +12,11 @@ def create_test_database():
     import psycopg2
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
     
+    if not Config.TESTING:
+        print("[setup_test_env] ERROR: Attempted to create test database while not in TESTING mode! Aborting.")
+        import logging
+        logging.error("[setup_test_env] Attempted to create test database while not in TESTING mode! Aborting.")
+        return False
     try:
         # Connect to postgres database to create test database
         conn = psycopg2.connect(
@@ -23,53 +28,54 @@ def create_test_database():
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = conn.cursor()
-        
         # Check if test database exists
         cursor.execute("""
             SELECT 1 FROM pg_database WHERE datname = %s
         """, (Config.DB_NAME,))
-        
         if not cursor.fetchone():
             cursor.execute(f'CREATE DATABASE "{Config.DB_NAME}"')
             print(f"✅ Created test database: {Config.DB_NAME}")
         else:
             print(f"ℹ️  Test database already exists: {Config.DB_NAME}")
-        
         cursor.close()
         conn.close()
-        
     except Exception as e:
         print(f"❌ Error creating test database: {e}")
+        import logging
+        logging.error(f"Error creating test database: {e}")
         return False
-    
     return True
 
 def setup_test_environment():
     """Setup test environment"""
-    print("Setting up test environment...")
-    print(f"Database: {Config.DB_NAME}")
-    print(f"Testing Mode: {Config.TESTING}")
-    
+    print("[setup_test_env] Setting up test environment...")
+    print(f"[setup_test_env] Database: {Config.DB_NAME}")
+    print(f"[setup_test_env] Testing Mode: {Config.TESTING}")
+    import logging
+    logging.info(f"[setup_test_env] Database: {Config.DB_NAME}")
+    logging.info(f"[setup_test_env] Testing Mode: {Config.TESTING}")
     # Create test database if needed
-    if Config.TESTING:
-        if not create_test_database():
-            return False
-    
+    if not Config.TESTING:
+        print("[setup_test_env] ERROR: Not in TESTING mode! Aborting setup.")
+        logging.error("[setup_test_env] Not in TESTING mode! Aborting setup.")
+        return False
+    if not create_test_database():
+        return False
     # Initialize database manager and create tables
     try:
         db_manager = DatabaseManager()
         db_manager.create_tables()
         print("✅ Database tables created/verified")
-        
+        logging.info("Database tables created/verified")
         # Test connection
         recent = db_manager.get_recent_entries(1)
         print(f"✅ Database connection verified - {len(recent)} recent entries found")
-        
+        logging.info(f"Database connection verified - {len(recent)} recent entries found")
         db_manager.close()
         return True
-        
     except Exception as e:
         print(f"❌ Error setting up database: {e}")
+        logging.error(f"Error setting up database: {e}")
         return False
 
 def clear_test_data():

@@ -76,47 +76,52 @@ class NotionIntegrationManager:
     def process_daily_captures(self, daily_entry):
         """Process daily captures from Notion during EOD"""
         if not self.config.NOTION_ENABLED or not self.notion_manager:
+            logger.warning("Notion integration is disabled or NotionManager not initialized. Skipping capture processing.")
             return ValidationResult(True, "Notion integration disabled", {
                 'captures_processed': False,
                 'sections_imported': 0,
                 'blocks_cleared': 0
             })
-        
+
         try:
             date_str = daily_entry['date'].strftime('%Y-%m-%d')
             logger.info(f"Processing Notion captures for {date_str}")
-            
+
             # Get captures from Notion
             capture_result = self.notion_manager.get_daily_capture_content()
-            
+            logger.info(f"Capture result: success={capture_result.get('success')}, block_count={capture_result.get('block_count', 0)}")
+
             result_data = {
                 'captures_processed': False,
                 'sections_imported': 0,
                 'blocks_cleared': 0,
                 'content': None
             }
-            
+
             if capture_result['success'] and capture_result['content']:
                 sections_found = len(capture_result['content'])
                 logger.info(f"Found {sections_found} content sections in Notion")
-                
+
                 # Log each section for debugging
                 for header, items in capture_result['content'].items():
                     logger.debug(f"Section '{header}': {len(items)} items")
-                
+
                 # Format for markdown
                 notion_markdown = self.notion_manager.format_content_for_markdown(
                     capture_result['content']
                 )
-                
+                logger.info(f"Generated markdown for Notion capture: {len(notion_markdown)} characters")
+                logger.debug(f"Markdown preview: {notion_markdown[:200]}")
+
                 if notion_markdown.strip():
                     result_data.update({
                         'captures_processed': True,
                         'sections_imported': len(capture_result['content']),
                         'content': notion_markdown
                     })
-                    logger.info(f"Generated {len(notion_markdown)} characters of markdown")
-                
+                    logger.info(f"Storing Notion markdown content in database for {date_str}")
+                    logger.debug(f"Stored content: {notion_markdown[:500]}")
+
                 # Clear the Notion page for next day
                 clear_result = self.notion_manager.clear_daily_capture_page()
                 if clear_result['success']:
@@ -124,7 +129,7 @@ class NotionIntegrationManager:
                     logger.info(f"Cleared {clear_result['deleted_blocks']} blocks from Daily Capture")
                 else:
                     logger.error(f"Failed to clear Daily Capture: {clear_result['error']}")
-                
+
                 # Rebuild template for next day
                 if daily_entry['sod_data']:
                     rebuild_result = self.notion_manager.update_daily_capture_template(daily_entry['sod_data'])
@@ -134,7 +139,7 @@ class NotionIntegrationManager:
                         logger.error(f"Template rebuild failed: {rebuild_result['error']}")
                 else:
                     logger.warning("No SOD data available for template rebuild")
-            
+
             else:
                 if capture_result['success']:
                     logger.info("No captures found in Notion Daily Capture page")
@@ -142,9 +147,10 @@ class NotionIntegrationManager:
                     error_msg = f"Failed to retrieve captures: {capture_result.get('error', 'Unknown error')}"
                     logger.error(error_msg)
                     return ValidationResult(False, error_msg)
-            
+
+            logger.info(f"Final Notion capture result for {date_str}: {result_data}")
             return ValidationResult(True, "Notion captures processed", result_data)
-            
+
         except Exception as e:
             error_msg = f"Notion capture processing exception: {e}"
             logger.error(error_msg, exc_info=True)
