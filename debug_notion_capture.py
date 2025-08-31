@@ -31,9 +31,12 @@ def debug_capture_processing():
         return
     
     daily_entry = entry_result.data
-    print(f"✅ Retrieved daily entry for {test_date}")
-    print(f"   SOD data: {bool(daily_entry['sod_data'])}")
-    print(f"   EOD data: {bool(daily_entry['eod_data'])}")
+        if daily_entry is None:
+            print(f"   No entry found for {test_date}. Try a more recent date with data (e.g., 2025-08-29 or today).")
+            return
+        print(f"✅ Retrieved daily entry for {test_date}")
+        print(f"   SOD data: {bool(daily_entry['sod_data'])}")
+        print(f"   EOD data: {bool(daily_entry['eod_data'])}")
     
     # Test the capture manager
     capture_manager = DailyCaptureManager()

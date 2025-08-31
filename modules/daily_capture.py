@@ -164,18 +164,23 @@ class MarkdownManager:
         self.markdown_generator = MarkdownGenerator()
         self.notion_integration = NotionIntegrationManager()
     
-    def generate_initial_template(self, daily_entry):
-        """Generate initial daily template (SOD processing)"""
+    def generate_final_template(self, daily_entry):
+        """Generate final markdown template for daily entry"""
         try:
-            # Only generate if no EOD data exists (first time creation)
-            if daily_entry['eod_data']:
-                logger.info("EOD data exists, skipping initial template generation")
-                return ValidationResult(True, "Template generation skipped - EOD data exists", {
-                    'template_generated': False,
-                    'reason': 'eod_exists'
-                })
-            
-            # Generate template
+            generator = MarkdownGenerator()
+            date_str = daily_entry['date'].strftime('%Y-%m-%d')
+            logger.info(f"[SOD-TEMPLATE] generate_final_template: date={daily_entry['date']} (type={type(daily_entry['date'])}), date_str={date_str}")
+            content_exists = daily_entry['sod_data'] is not None
+            logger.info(f"[SOD-TEMPLATE] generate_final_template: sod_data_exists={content_exists}")
+            if content_exists:
+                logger.info(f"[SOD-TEMPLATE] generate_final_template: sod_data_keys={list(daily_entry['sod_data'].keys())}")
+            else:
+                logger.warning("[SOD-TEMPLATE] generate_final_template: No SOD data available for template generation")
+            return generator.generate_daily_template(daily_entry)
+        except Exception as e:
+            error_msg = f"[SOD-TEMPLATE] generate_final_template: Template generation failed: {e}"
+            logger.error(error_msg, exc_info=True)
+            return None
             markdown_path = self.markdown_generator.generate_daily_template(daily_entry)
             
             if markdown_path:
@@ -286,13 +291,13 @@ class DailyCaptureManager:
     def process_sod_workflow(self, sod_data, daily_entry):
         """Process SOD workflow: update Notion template and generate initial markdown"""
         current_date = daily_entry['date']
-        
+
         # Update Notion template with SOD data
         notion_result = self.notion_integration.update_daily_template_with_sod(sod_data, current_date)
-        
+
         # Generate initial markdown template
-        markdown_result = self.markdown_manager.generate_initial_template(daily_entry)
-        
+        markdown_result = self.markdown_manager.regenerate_template(daily_entry)
+
         return {
             'notion_result': notion_result,
             'markdown_result': markdown_result

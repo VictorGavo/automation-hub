@@ -102,6 +102,46 @@ class SODDataProcessor:
         return success if success else "(Success criteria not provided in SOD form)"
 
 class MarkdownGenerator:
+    def generate_initial_template(self, daily_entry):
+        """
+        Generate a basic daily template for SOD processing.
+        Populates SOD data, omits EOD and Notion sections.
+        """
+        if not daily_entry:
+            return None
+        date_str = daily_entry['date'].strftime('%Y-%m-%d')
+        content = []
+        # Add frontmatter
+        content.extend(self._build_frontmatter(daily_entry, date_str))
+        content.append("")
+        # Navigation
+        content.extend(self._build_navigation(daily_entry, date_str))
+        content.append("")
+        # Reminders section (with SOD data)
+        content.extend(self._build_reminders_section(daily_entry))
+        content.append("")
+        # Journals section (with SOD data)
+        content.extend(self._build_journals_section(daily_entry))
+        content.append("")
+        # Today's Notes section
+        content.extend(self._build_notes_section(daily_entry))
+        # Write to file
+        filename = f"{date_str}.md"
+        filepath = os.path.join(self.output_dir, filename)
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write("\n".join(content))
+            print(f"Generated initial SOD template: {filepath}")
+            if self.drive_manager:
+                upload_result = self.drive_manager.upload_daily_note(filepath, daily_entry['date'])
+                if upload_result['success']:
+                    print(f"Successfully uploaded {os.path.basename(filepath)} to Google Drive")
+                else:
+                    print(f"Failed to upload {os.path.basename(filepath)} to Google Drive: {upload_result.get('error')}")
+            return filepath
+        except Exception as e:
+            print(f"Error writing initial markdown file: {e}")
+            return None
     def __init__(self):
         self.config = Config()
         self.template_dir = "templates"
@@ -458,7 +498,6 @@ class MarkdownGenerator:
         else:
             content.append("1. (SOD form not completed)")
             content.append("2. ")
-            content.append("3. ")
             content.append("3. ")
             logger.warning("No SOD data available for Big 3 processing")
         

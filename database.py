@@ -184,13 +184,16 @@ class DatabaseManager:
     
     def upsert_sod_data(self, date_obj, sod_data):
         """Insert or update SOD data for a given date"""
+        import logging
         try:
             cursor = self.connection.cursor()
-            
             date_str = self._convert_date_for_storage(date_obj)
             json_data = self._prepare_json_data(sod_data)
             timestamp_str = self._convert_datetime_for_storage(datetime.now())
-            
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: date={date_obj} (type={type(date_obj)}), date_str={date_str}")
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: sod_data keys={list(sod_data.keys()) if sod_data else 'None'}")
+            operation = 'INSERT/UPDATE (PostgreSQL)' if self.db_type == 'postgresql' else 'INSERT OR REPLACE (SQLite)'
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: operation={operation}")
             if self.db_type == 'postgresql':
                 cursor.execute('''
                     INSERT INTO daily_entries (date, sod_data, sod_timestamp)
@@ -206,12 +209,13 @@ class DatabaseManager:
                     (date, sod_data, sod_timestamp, updated_at)
                     VALUES (?, ?, ?, ?)
                 ''', (date_str, json_data, timestamp_str, timestamp_str))
-            
             self.connection.commit()
             cursor.close()
+            logging.info(f"[SOD-STORAGE] upsert_sod_data: SUCCESS for date={date_obj}")
             print(f"✅ SOD data saved for {date_obj}")
             return True
         except Exception as e:
+            logging.error(f"[SOD-STORAGE] upsert_sod_data: FAILURE for date={date_obj}, error={e}")
             print(f"Error upserting SOD data: {e}")
             self.connection.rollback()
             return False
@@ -252,30 +256,38 @@ class DatabaseManager:
     
     def get_daily_entry(self, date_obj):
         """Get complete daily entry for a specific date"""
+        import logging
         try:
+            date_str = self._convert_date_for_storage(date_obj)
+            logging.info(f"[SOD-RETRIEVAL] get_daily_entry: date_obj={date_obj} (type={type(date_obj)}), date_str={date_str}")
             if self.db_type == 'postgresql':
                 cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             else:
                 cursor = self.connection.cursor()
-                
-            date_str = self._convert_date_for_storage(date_obj)
-            
             if self.db_type == 'sqlite':
                 cursor.execute('SELECT * FROM daily_entries WHERE date = ?', (date_str,))
             else:
                 cursor.execute('SELECT * FROM daily_entries WHERE date = %s', (date_str,))
-            
             result = cursor.fetchone()
             cursor.close()
-            
+            found = bool(result)
+            logging.info(f"[SOD-RETRIEVAL] get_daily_entry: found_row={found}")
             if result:
                 if self.db_type == 'sqlite':
-                    # Convert SQLite row to dict
                     result_dict = dict(result)
+                    sod_data = self._parse_json_data(result_dict['sod_data'])
+                else:
+                    sod_data = result['sod_data']
+                is_null = sod_data is None
+                logging.info(f"[SOD-RETRIEVAL] get_daily_entry: sod_data_null={is_null}")
+                if not is_null and isinstance(sod_data, dict):
+                    logging.info(f"[SOD-RETRIEVAL] get_daily_entry: sod_data_keys={list(sod_data.keys())}")
+                # ...existing code...
+                if self.db_type == 'sqlite':
                     return {
                         'id': result_dict['id'],
                         'date': self._convert_date_from_storage(result_dict['date']),
-                        'sod_data': self._parse_json_data(result_dict['sod_data']),
+                        'sod_data': sod_data,
                         'sod_timestamp': self._convert_datetime_from_storage(result_dict['sod_timestamp']),
                         'eod_data': self._parse_json_data(result_dict['eod_data']),
                         'eod_timestamp': self._convert_datetime_from_storage(result_dict['eod_timestamp']),
@@ -283,11 +295,10 @@ class DatabaseManager:
                         'updated_at': self._convert_datetime_from_storage(result_dict['updated_at'])
                     }
                 else:
-                    # PostgreSQL with RealDictCursor
                     return {
                         'id': result['id'],
                         'date': result['date'],
-                        'sod_data': result['sod_data'],
+                        'sod_data': sod_data,
                         'sod_timestamp': result['sod_timestamp'],
                         'eod_data': result['eod_data'],
                         'eod_timestamp': result['eod_timestamp'],
@@ -296,6 +307,7 @@ class DatabaseManager:
                     }
             return None
         except Exception as e:
+            logging.error(f"[SOD-RETRIEVAL] get_daily_entry: FAILURE for date={date_obj}, error={e}")
             print(f"Error getting daily entry: {e}")
             return None
     
