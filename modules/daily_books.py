@@ -6,8 +6,9 @@ from config import Config
 class SODProcessor:
     """Handles Start-of-Day form processing logic"""
     
-    def __init__(self):
+    def __init__(self, db_manager=None):
         self.config = Config()
+        self.db_manager = db_manager
     
     def validate_sod_data(self, form_data, current_date):
         """Validate SOD form data"""
@@ -36,24 +37,23 @@ class SODProcessor:
     def process_sod_submission(self, form_data, current_date):
         """Process SOD form submission"""
         CoreUtils.log_processing_start("SOD", current_date)
-        
+        logger.info(f"[SOD-STORAGE] process_sod_submission: Received form_data: {form_data}")
         # Validate form data
         validation = self.validate_sod_data(form_data, current_date)
         if not validation.is_valid:
+            logger.warning(f"[SOD-STORAGE] process_sod_submission: Validation failed: {validation.message}")
             return validation
-        
         # Check workflow prerequisites
         with DatabaseContext() as db_manager:
             prerequisite_check = self.check_workflow_prerequisites(db_manager, current_date)
-            
+            logger.info(f"[SOD-STORAGE] process_sod_submission: Passing to db_manager.upsert_sod_data: date={current_date}, form_data={form_data}")
             # Store SOD data (continue even if previous day incomplete)
-            success = db_manager.upsert_sod_data(current_date, form_data)
-            
-            if not success:
+            result = db_manager.upsert_sod_data(current_date, form_data)
+            logger.info(f"[SOD-STORAGE] process_sod_submission: upsert_sod_data result: {result}")
+            if not result:
+                logger.error(f"[SOD-STORAGE] process_sod_submission: Failed to store SOD data for {current_date}")
                 return ValidationResult(False, "Failed to store SOD data")
-        
         CoreUtils.log_processing_success("SOD", current_date)
-        
         result_data = {
             'sod_stored': True,
             'previous_day_warning': prerequisite_check.message if not prerequisite_check.is_valid else None
@@ -64,8 +64,9 @@ class SODProcessor:
 class EODProcessor:
     """Handles End-of-Day form processing logic"""
     
-    def __init__(self):
+    def __init__(self, db_manager=None):
         self.config = Config()
+        self.db_manager = db_manager
     
     def validate_eod_data(self, form_data, current_date):
         """Validate EOD form data"""
@@ -122,9 +123,10 @@ class EODProcessor:
 class DailyBooksManager:
     """Main manager class for daily books processing"""
     
-    def __init__(self):
-        self.sod_processor = SODProcessor()
-        self.eod_processor = EODProcessor()
+    def __init__(self, db_manager=None):
+        self.db_manager = db_manager
+        self.sod_processor = SODProcessor(db_manager=db_manager) if db_manager else SODProcessor()
+        self.eod_processor = EODProcessor(db_manager=db_manager) if db_manager else EODProcessor()
     
     def process_sod(self, form_data, current_date):
         """Process SOD form data and return result"""
