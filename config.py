@@ -29,6 +29,8 @@ class Config:
     
     # File system sync method (recommended for Raspberry Pi)
     GOOGLE_DRIVE_SYNC_PATH = os.getenv('GOOGLE_DRIVE_SYNC_PATH', 'C:/Users/Victo/Google Drive/USV/My Calendar/My Daily Notes')
+    # Rclone remote name for Google Drive integration
+    GOOGLE_DRIVE_RCLONE_REMOTE = os.getenv('GOOGLE_DRIVE_RCLONE_REMOTE', 'gdrive')
 
     # Notion API Configuration
     NOTION_API_TOKEN = os.getenv('NOTION_API_TOKEN', None)

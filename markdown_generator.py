@@ -158,8 +158,17 @@ class MarkdownGenerator:
                     from file_system import FileSystemDriveManager
                     self.drive_manager = FileSystemDriveManager(Config.GOOGLE_DRIVE_SYNC_PATH)
                     print("Google Drive file system integration enabled")
+                elif Config.GOOGLE_DRIVE_METHOD == 'rclone':
+                    from rclone_drive_manager import RcloneDriveManager
+                    remote_name = getattr(Config, 'GOOGLE_DRIVE_RCLONE_REMOTE', None)
+                    remote_path = getattr(Config, 'GOOGLE_DRIVE_SYNC_PATH', "")
+                    if not remote_name:
+                        raise ValueError("GOOGLE_DRIVE_RCLONE_REMOTE must be set in Config for rclone method.")
+                    self.drive_manager = RcloneDriveManager(remote_name, remote_path)
+                    print("Google Drive rclone integration enabled")
                 else:
                     print(f"Unknown Google Drive Method: {Config.GOOGLE_DRIVE_METHOD}")
+                    self.drive_manager = None
             except Exception as e:
                 print(f"Failed to initialize Google Drive: {e}")
                 self.drive_manager = None

@@ -31,9 +31,11 @@ class RcloneDriveManager:
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"Source file not found: {file_path}")
 
+            # Always use just the filename for remote destination
             filename = os.path.basename(file_path)
             dest_remote = self.full_remote
-            cmd = ["rclone", "copyto", file_path, f"{dest_remote}/{filename}"]
+            remote_dest_path = f"{dest_remote}/{filename}" if self.remote_path else f"{self.remote_name}:{filename}"
+            cmd = ["rclone", "copyto", file_path, remote_dest_path]
             result = subprocess.run(cmd, capture_output=True, text=True)
 
             if result.returncode != 0:
