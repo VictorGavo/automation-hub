@@ -425,15 +425,18 @@ class MarkdownGenerator:
                 frontmatter.append(f"Rating: {eod_data['Rating']}")
             
             if 'Summary' in eod_data and eod_data['Summary']:
-                # Format for YAML multiline
-                summary = eod_data['Summary'].replace('\n', '\n  ')
+                # Remove '- ' prefix from each line for clean frontmatter
+                summary_lines = eod_data['Summary'].split('\n')
+                summary_clean = '\n  '.join([line[2:] if line.startswith('- ') else line for line in summary_lines])
                 frontmatter.append("Summary: |-")
-                frontmatter.append(f"  {summary}")
+                frontmatter.append(f"  {summary_clean}")
             
             if 'Story' in eod_data and eod_data['Story']:
-                story = eod_data['Story'].replace('\n', '\n  ')
+                # Remove '- ' prefix from each line for clean frontmatter
+                story_lines = eod_data['Story'].split('\n')
+                story_clean = '\n  '.join([line[2:] if line.startswith('- ') else line for line in story_lines])
                 frontmatter.append("Story: |-")
-                frontmatter.append(f"  {story}")
+                frontmatter.append(f"  {story_clean}")
                 
             for energy_type in ['Physical', 'Mental', 'Emotional', 'Spiritual']:
                 if energy_type in eod_data and eod_data[energy_type]:
@@ -561,106 +564,74 @@ class MarkdownGenerator:
         content.append("")
         
         # Gratitude section
+        content = []
+        content.append("## Journals")
+        content.append("")
+        # Gratitude section
         content.append("### Gratitude")
         content.append("")
-        
         processor = SODDataProcessor()
-        
-        # Enhanced gratitude processing
-        content.append("**3 things I'm grateful for in my life:**")
         if daily_entry['sod_data']:
             normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
+            # 3 things I'm grateful for in my life
+            content.append("**3 things I'm grateful for in my life:**")
             gratitude_life = normalized_data.get('gratitude_life', '')
-            
-        content.append("**3 things I'm grateful for in my life:**")
-        if daily_entry['sod_data']:
-            normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
-            gratitude_life = normalized_data.get('gratitude_life', '')
-            
             if gratitude_life:
                 items = [item.strip() for item in gratitude_life.split('\n') if item.strip()]
                 for item in items:
                     content.append(f"- {item}")
             else:
                 content.append("- (No gratitude data from SOD form)")
-        else:
-            content.append("- (SOD form not completed)")
-        content.append("")
-        
-        content.append("**3 things I'm grateful for about myself:**")
-        if daily_entry['sod_data']:
-            normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
+            content.append("")
+            # 3 things I'm grateful for about myself
+            content.append("**3 things I'm grateful for about myself:**")
             gratitude_self = normalized_data.get('gratitude_self', '')
-            
-        if daily_entry['sod_data'] and "3 things I'm grateful about myself:" in daily_entry['sod_data']:
-            gratitude_self = daily_entry['sod_data']["3 things I'm grateful about myself:"]
             if gratitude_self:
                 items = [item.strip() for item in gratitude_self.split('\n') if item.strip()]
                 for item in items:
                     content.append(f"- {item}")
             else:
                 content.append("- (No self-gratitude data from SOD form)")
+            content.append("")
+            # Morning Mindset
+            content.append("### Morning Mindset")
+            content.append("")
+            mindset_questions = [
+                ("excited_for", "I'm excited today for:"),
+                ("one_word", "One word to describe the person I want to be today would be __ because:"),
+                ("a_game_for", "Someone who needs me on my a-game today is:"),
+                ("obstacle", "What's a potential obstacle/stressful situation for today and how would my best self deal with it?"),
+                ("surprise", "Someone I could surprise with a note, gift, or sign of appreciation is:"),
+                ("excellence_action", "One action I could take today to demonstrate excellence or real value is:"),
+                ("bold_action", "One bold action I could take today is:"),
+                ("coach_advice", "An overseeing high performance coach would tell me today that:"),
+                ("big_projects", "The big projects I should keep in mind, even if I don't work on them today, are:"),
+                ("success_criteria", "I know today would be successful if I did or felt this by the end:")
+            ]
+            for field_key, question_text in mindset_questions:
+                content.append(f"**{question_text}**")
+                answer = normalized_data.get(field_key, '')
+                if not answer:
+                    # Fallback: check original data for exact question match
+                    original_data = normalized_data.get('_original', {})
+                    answer = original_data.get(question_text, '')
+                if answer and answer.strip():
+                    content.append(f"{answer}")
+                else:
+                    content.append("(Not provided in SOD form)")
+                    logger.warning(f"Missing answer for question: {question_text}")
+                content.append("")
         else:
+            content.append("**3 things I'm grateful for in my life:**")
             content.append("- (SOD form not completed)")
-        content.append("")
-
-        # Enhanced Morning Mindset
-        content.append("### Morning Mindset")
-        content.append("")
-        
-        if not daily_entry['sod_data']:
+            content.append("")
+            content.append("**3 things I'm grateful for about myself:**")
+            content.append("- (SOD form not completed)")
+            content.append("")
+            content.append("### Morning Mindset")
+            content.append("")
             content.append("(SOD form not completed)")
-            return content
-        
-        normalized_data = processor.normalize_sod_data(daily_entry['sod_data'])
-        
-        # Define questions with their normalized keys
-        mindset_questions = [
-            ("excited_for", "I'm excited today for:"),
-            ("one_word", "One word to describe the person I want to be today would be __ because:"),
-            ("a_game_for", "Someone who needs me on my a-game today is:"),
-            ("obstacle", "What's a potential obstacle/stressful situation for today and how would my best self deal with it?"),
-            ("surprise", "Someone I could surprise with a note, gift, or sign of appreciation is:"),
-            ("excellence_action", "One action I could take today to demonstrate excellence or real value is:"),
-            ("bold_action", "One bold action I could take today is:"),
-            ("coach_advice", "An overseeing high performance coach would tell me today that:"),
-            ("big_projects", "The big projects I should keep in mind, even if I don't work on them today, are:"),
-            ("success_criteria", "I know today would be successful if I did or felt this by the end:")
-        ]
-        
-        for field_key, question_text in mindset_questions:
-            content.append(f"**{question_text}**")
-            
-            # Try normalized key first, then fall back to original key matching
-            answer = normalized_data.get(field_key, '')
-            
-            if not answer:
-                # Fallback: check original data for exact question match
-                original_data = normalized_data.get('_original', {})
-                answer = original_data.get(question_text, '')
-            
-            if answer and answer.strip():
-                content.append(f"{answer}")
-            else:
-                content.append("(Not provided in SOD form)")
-                logger.warning(f"Missing answer for question: {question_text}")
-            
-        # Morning Mindset
-        content.append("### Morning Mindset")
-        content.append("")
-        
-        mindset_questions = [
-            "I'm excited today for:",
-            "One word to describe the person I want to be today would be __ because:",
-            "Someone who needs me on my a-game today is:",
-            "What's a potential obstacle/stressful situation for today and how would my best self deal with it?",
-            "Someone I could surprise with a note, gift, or sign of appreciation is:",
-            "One action I could take today to demonstrate excellence or real value is:",
-            "One bold action I could take today is:",
-            "An overseeing high performance coach would tell me today that:",
-            "The big projects I should keep in mind, even if I don't work on them today, are:",
-            "I know today would be successful if I did or felt this by the end:"
-        ]
+        return content
         
         for question in mindset_questions:
             content.append(f"**{question}**")
@@ -790,6 +761,8 @@ class MarkdownGenerator:
             for energy_type in energy_types:
                 content.append(f"##### {energy_type}")
                 content.append("")
+                # Add meta-bind code block for energy tracker
+                content.append(f"```meta-bind\nINPUT[progressBar(minValue(1), maxValue(10)):{energy_type}]\n```")
                 energy_level = daily_entry['eod_data'].get(f"{energy_type}", "")
                 content.append(f"**{energy_type} Energy:** {energy_level}/10")
                 content.append("")
@@ -870,18 +843,23 @@ class MarkdownGenerator:
             logger.warning("Notion content is empty, skipping insertion.")
             return content_lines
 
-        # Find the '#### From Daily Capture' section first
-        from_daily_capture_index = None
+        # Consolidate all capture content under a single '#### 💭 Quick Capture' header
+        # Remove all duplicate headers from notion_content
+        capture_header = "#### 💭 Quick Capture"
+        # Remove all lines that are exactly the header
+        notion_lines = [line for line in notion_content.split('\n') if line.strip() != capture_header]
+
+        # Find the '#### 💭 Quick Capture' section in the file
+        quick_capture_index = None
         for i, line in enumerate(content_lines):
-            if line.strip() == "#### From Daily Capture":
-                from_daily_capture_index = i
+            if line.strip() == capture_header:
+                quick_capture_index = i
                 break
 
-        if from_daily_capture_index is not None:
-            # Insert after this header, replacing any previous content until next section or end
+        if quick_capture_index is not None:
             # Find next section header (### or ##) or end of file
             next_section_index = None
-            for j in range(from_daily_capture_index + 1, len(content_lines)):
+            for j in range(quick_capture_index + 1, len(content_lines)):
                 if content_lines[j].strip().startswith("###") or content_lines[j].strip().startswith("##"):
                     next_section_index = j
                     break
@@ -889,12 +867,12 @@ class MarkdownGenerator:
                 next_section_index = len(content_lines)
             # Replace content between header and next section
             updated_lines = (
-                content_lines[:from_daily_capture_index + 1] +
-                notion_content.split('\n') +
+                content_lines[:quick_capture_index + 1] +
+                notion_lines +
                 [''] +
                 content_lines[next_section_index:]
             )
-            logger.info(f"Inserted Notion captures under '#### From Daily Capture' at line {from_daily_capture_index}.")
+            logger.info(f"Inserted Notion captures under '{capture_header}' at line {quick_capture_index}.")
             return updated_lines
 
         # If not found, fallback to '### Captured Notes' section
@@ -917,8 +895,8 @@ class MarkdownGenerator:
             insert_index = dataview_end_index + 1
             updated_lines = (
                 content_lines[:insert_index] +
-                ['', '#### From Daily Capture'] +
-                notion_content.split('\n') +
+                ['', capture_header] +
+                notion_lines +
                 [''] +
                 content_lines[insert_index:]
             )
@@ -926,11 +904,11 @@ class MarkdownGenerator:
             return updated_lines
 
         # If neither section found, append to end
-        logger.error("Could not find '#### From Daily Capture' or '### Captured Notes' section. Appending Notion captures to end of file.")
+        logger.error(f"Could not find '{capture_header}' or '### Captured Notes' section. Appending Notion captures to end of file.")
         updated_lines = (
             content_lines +
-            ['', '#### From Daily Capture'] +
-            notion_content.split('\n') +
+            ['', capture_header] +
+            notion_lines +
             ['']
         )
         return updated_lines
