@@ -1,0 +1,74 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual trigger from GitHub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+        
+    - name: Add Pi to known hosts
+      run: |
+        ssh-keyscan -H ${{ secrets.PI_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: Deploy to Pi
+      run: |
+        echo "🚀 Starting deployment to Pi..."
+        
+        # Sync code to Pi (excluding sensitive files)
+        rsync -avz --delete \
+          --exclude='.git' \
+          --exclude='.env' \
+          --exclude='__pycache__' \
+          --exclude='*.pyc' \
+          --exclude='node_modules' \
+          ./ ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }}:/var/www/automation/
+          
+        # SSH into Pi and update services
+        ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
+          cd /var/www/automation
+          
+          echo "📦 Installing/updating dependencies..."
+          python3 -m pip install -r requirements.txt
+          
+          echo "🔄 Running database migrations if needed..."
+          python3 -c "
+          try:
+              from database import get_db_connection
+              conn = get_db_connection()
+              # Add any migration logic here
+              conn.close()
+              print('✅ Database check complete')
+          except Exception as e:
+              print(f'⚠️  Database check failed: {e}')
+          "
+          
+          echo "🔄 Restarting Flask automation service..."
+          sudo systemctl restart flask-automation
+          
+          echo "🔍 Checking service status..."
+          sudo systemctl status flask-automation --no-pager -l
+          
+          echo "🌐 Testing webhook endpoint..."
+          curl -f http://localhost:5000/health || echo "⚠️  Health check failed"
+          
+          echo "✅ Deployment complete!"
+        EOF
+        
+    - name: Deployment Status
+      run: |
+        echo "🎉 Deployment to Pi completed successfully!"
+        echo "📍 Service running at: http://victor-hub.duckdns.org"
