@@ -62,8 +62,10 @@ jobs:
           echo "🔍 Checking service status..."
           sudo systemctl status flask-automation --no-pager -l
           
-          echo "🌐 Testing webhook endpoint..."
-          curl -f http://localhost:5000/health || echo "⚠️  Health check failed"
+          echo "🌐 Testing deployment endpoints..."
+          curl -f http://localhost:5000/health || echo "⚠️  Basic health check failed"
+          curl -f http://localhost:5000/github-actions-test || echo "⚠️  Deployment verification failed"
+          curl -s http://localhost:5000/deploy-status | python3 -m json.tool
           
           echo "✅ Deployment complete!"
         EOF
